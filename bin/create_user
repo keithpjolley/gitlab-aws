@@ -1,0 +1,90 @@
+#! /usr/bin/env python
+# -*- coding: UTF8 -*-
+
+"""
+This is a minimal script to create a new IAM user and
+group that will have the ability create the bootstrap
+environment.
+
+Creates ~/.aws/credentials_user and
+
+Policy is read from './additional/access_policy.json'.
+
+An existing user of the same name needs to be deleted first.
+
+I'm not sure yet how much it's needed so not doing much in the
+way of error checking or corner cases.
+
+Keith Jolley
+Tue Feb 11 06:27:45 PST 2019
+"""
+
+import sys
+import os
+import boto3
+from pathlib import Path
+
+def build_user(iam_client, iam, creator, username, policy_dir, region):
+    """
+    Creates the named user using the `iam` client.
+    Adds permissions to the group by importing "./policy_dir/*.json".
+    Creates a credentials file: ~/.aws/credentials.name
+    Best practice would be to create separate IAM policies, attach those to groups,
+    and add this user to that group.
+    """
+    # Create the user.
+
+    response = iam_client.create_user(
+        UserName = username,
+        Tags = [{ 'Key': 'Created_By', 'Value': creator }]
+    )
+    user = iam.User(response['User']['UserName'])
+
+    access_key_pair = user.create_access_key_pair()
+    cred_file = Path("~/.aws/credentials_" + username).expanduser()
+    with open(str(cred_file), 'w') as f:
+        f.write('[' + access_key_pair.user_name + ']\n')
+        f.write('aws_access_key_id = ' + access_key_pair.id + '\n')
+        f.write('aws_secret_access_key = ' + access_key_pair.secret + '\n')
+        f.write('region = ' + region + '\n')
+    cred_file.chmod(0o600)
+
+    response = iam_client.create_group(
+        GroupName = username + "_group"
+    )
+    group = iam.Group(response['Group']['GroupName'])
+
+    for policy_doc in Path(policy_dir).glob('**/policy_*.json'):
+        # I know this works because I've tried everything that doesn't.
+        with open(policy_doc) as f:
+            data = f.read()
+        group_policy = group.create_policy(
+            PolicyName = username + "_group_policy",
+            PolicyDocument = data
+        )
+    return cred_file
+
+if __name__ == "__main__":
+
+    me = os.path.basename(sys.argv[0])
+
+    if(len(sys.argv) < 2) or ((sys.argv[1] == "-h") or (sys.argv[1]) == "--help"):
+        msg = "USAGE: '{} name [policy_dir [region]]' -- Creates an IAM profile for the bootstrap environment."
+        print(msg.format(me))
+        sys.exit(0)
+
+    username = sys.argv[1]
+
+    policy_dir = './policies/user'
+    if(len(sys.argv) > 2):
+        policy_document = sys.argv[2]
+
+    region = 'us-west-2'
+    if(len(sys.argv) > 3):
+        policy_document = sys.argv[3]
+
+    client = boto3.client('iam')
+    iam = boto3.resource('iam')
+
+    cred_file = build_user(client, iam, me, username, policy_dir, region)
+    print("Created credentials file: " + str(cred_file))

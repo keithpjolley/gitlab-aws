@@ -1,0 +1,525 @@
+#! /usr/bin/env python
+# -*- coding: UTF8 -*-
+
+# Keith Jolley
+# Sat Feb  9 05:11:45 PST 2019
+
+# Tested with python3.6 on Linux and Darwin
+# You must run this progam in the same directory as the source data.
+# Requires:
+#   terraform: https://www.terraform.io/downloads.html
+#   ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
+#   There are also conda installs available for terraform and ansible.
+
+# May need to install this?
+import boto3
+
+# Standard library
+import re
+import os
+import sys
+import stat
+import datetime
+import platform
+import subprocess
+from pathlib import Path
+
+# This is used in all resources to help keep track of why it exists.
+# It's also the name of the *credential* I'll try to use before any
+# of the default profiles.
+TOKEN = "install-gitlab"
+
+# Add other AWS credential profiles, in order, to try. Will use the
+# first one that works. Also tries 'default' and 'ENV'. Tenacious.
+PROFILES = [TOKEN]
+
+# Directory structure
+#   source/[terraform,ansible]
+#   destination_region/[terraform,ansible]
+# Runs terraform in `terraform` sub-dir.
+# Absolute paths haven't been tested.
+source_dir = "./source"
+destination_dir = "./environment"
+terraform = "terraform"
+
+# Note that changing versions will cause all (most) resources to be rebuilt.
+VERSION = "0.1"
+VERBOSE = True
+
+USERNAME = "centos"
+BASTION_HOSTNAME = "bastion"
+DOMAINNAME = "jamulheavyindustries.com"
+
+# These ansible roles are required to configure the NFS server.
+# Will attempt to install if not already.
+ANSIBLE_ROLES = ['geerlingguy.nfs', 'aloisbarreras.ebs-raid-array']
+
+# The Gitlab Application server AMI/owner IDs
+GITHUB_APP_SERVER_AMI_ID = 'ami-074dd773b8f28df28'
+GITHUB_APP_SERVER_OWNER_ID = '842937609224'
+GITHUB_APP_SERVER_REGION = 'us-west-2'
+
+def inform(message, fatal=0):
+    """
+    Prints 'code: me: message' to stderr.
+    If fatal>0 then `code` is "ERROR" and exits with code.
+    If fatal=0 then `code` is "NOTE" and function returns.
+    All `fatal` messages are printed, else only if VERBOSE.
+    """
+    code = "ERROR:" if fatal else "NOTE: "
+    message = re.sub("^|\n", "\n{} {}: ".format(code, me), message).lstrip()
+    if fatal:
+        print(message, file=sys.stderr)
+        sys.exit(fatal)
+    if VERBOSE:
+        print(message, file=sys.stderr)
+    return
+
+# Various messages should this go pear shaped.
+REGION_FINDER = """Valid regions can be found with:
+% aws ec2 describe-regions --query "Regions[].{Name:RegionName}" --output text | sort
+
+Their geographic locations are listed here:
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html"""
+
+TERRAFORM_MESSAGE = """Terraform needs to be installed. It can be downloaded here:
+https://learn.hashicorp.com/terraform/getting-started/install.html
+Or with conda:
+conda install -c conda-forge terraform
+Terraform is a binary. It can be installed in '{}'"""
+
+ANSIBLE_MESSAGE = """Ansible needs to be installed. It can be downloaded here:
+https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
+Or with conda:
+conda install -c conda-forge ansible"""
+
+
+def usage(res):
+    message = """USAGE: '{} aws-region'
+
+Creates a GitLab instance in 'aws-region'.
+Requires the `boto3` python package.
+
+Assumes you have terraform and ansible in your
+path and you can otherwise run aws commands.
+
+Required keys are in ~/.aws - created if needed.
+
+Looks in PATH and "./bin/{}/" for terraform.
+
+{}""".format(me, platform.system(), REGION_FINDER)
+    inform(message)
+    sys.exit(res)
+    return
+
+
+def check_keypair(keyname, profile, client, resource, region):
+    """
+    Ensures there's a valid keypair in the region AND a pem file.
+    Halts if not.
+    """
+    inform("Checking for key-pair '{}' in '{}'.".format(keyname, region))
+    pem_dir = Path('~', '.aws').expanduser()
+    pem_file = Path(pem_dir, keyname + '.pem')
+    try:
+        response = client.describe_key_pairs(KeyNames=[keyname])
+    except boto3.exceptions.botocore.exceptions.EndpointConnectionError:
+        inform("Couldn't verify key-pair for region '" + region + "'\n"
+             + "This probably means you don't have a valid region.\n"
+             + REGION_FINDER, 4)
+    except boto3.exceptions.botocore.exceptions.ClientError:
+        # No key. Try to create one and a pem file.
+        error = sys.exc_info()[1]
+        if('Error' in error.response
+                and 'Code' in error.response['Error']
+                and error.response['Error']['Code'] == 'InvalidKeyPair.NotFound'):
+            inform("The keypair '{}' was not found. Attempting to create."
+                .format(keyname))
+            os.chmod(pem_dir, 0o700)
+            if pem_file.exists():
+                inform(
+""""It appears you already had a key with this name in this region once:
+'{}'
+I don't want to possibly foul things up by creating a new key.
+Maybe just move the existing pem file?""".format(pem_file), 5)
+            try: key_pair_response = resource.create_key_pair(KeyName=keyname)
+            except:
+                inform("Failed creating a new keypair:\n{}".format(sys.exc_info()[1]), 6)
+            with open(pem_file, 'w') as f:
+                f.write(str(key_pair_response.key_material))
+            os.chmod(pem_file, 0o600)
+        else:
+            inform("Unexpected error key pairs:\n{}".format(sys.exc_info()[1]), 7)
+    #else:
+    #    inform("Unexpected error getting key pairs:\n{}".format(sys.exc_info()[1]), 8)
+    if not pem_file.exists():
+        inform("Expected a pem file here: {}".format(pem_file), 10)
+    return pem_file
+
+
+def get_profile(profiles, region):
+    """
+    Try to create a session using our profile. If it fails try to create
+    our profile using `default`. If that fails, give up.
+    """
+    for profile in profiles:
+        try:
+            session = boto3.session.Session(profile_name=profile, region_name=region)
+        except boto3.exceptions.botocore.exceptions.ProfileNotFound:
+            inform("Profile '{}' not found.".format(profile))
+        except:
+            inform("Unexpected error trying to create a session:\n{}\nWill try to press on."
+                .format(sys.exc_info()[1]))
+        else:
+            return profile
+    # try using ENV vars.
+    try:
+        session = boto3.session.Session(region_name=region)
+    except:
+        inform(
+"""Couldn't connect to aws. Please create a valid profile in ~/.aws/credentials.\n"""
+            + REGION_FINDER, 9)
+    inform("Using default credentials.")
+    return
+
+
+def get_ec2(btype, profile, region):
+    """
+    Connect to an ec2 session and return a btype.
+    A `btype` is one of client() or resource().
+    """
+    inform("Connecting to ec2.")
+    try:
+        if profile:
+            session = boto3.session.Session(profile_name=profile, region_name=region)
+        else:
+            session = boto3.session.Session(region_name=region)
+    except:
+        inform("Couldn't create a boto3 session.{}\n".format(sys.exc_info()[1]), 4)
+    if btype == 'client':
+        return session.client('ec2', region_name=region)
+    if btype == 'resource':
+        return session.resource('ec2', region_name=region)
+    inform("Error in `get_ec2() - unknown botype", 5)
+    return
+
+
+def parse_source_data(data, subs):
+    """
+    Inserts a prefix where ever `__PREFIX__` is found
+    Prefix converts `subs` into terraform vars:
+    variable "key" { default = "value" }
+    """
+    # This replaces the following code.
+    #"""
+    #Replace all $(_KEY_) with VALUE in data. Yes, this is clunky.
+    #First re finds all the $(_keys_) in the data.
+    #Second re replaces key -> value in `subs`.
+    #"""
+    #data_re = re.compile('(\$\(_(' + '|'.join(map(re.escape, subs)) + ')_\))')
+    #key_re = re.compile(r'^\$\(_([^_]*)_\)$')
+    #return data_re.sub(lambda x: subs[key_re.sub("\g<1>", x.group(0))], data)
+    #
+    # I think this is a little cleaner, maintainable, and nearer to what terraformers
+    # would bless. Maybe even just a separate vars file would be better?
+    prefix = "\n".join([('variable "{}" {} default = "{}" {}'.format(k,"{",v,"}"))
+                    for k,v in subs.items()])
+    return re.sub(r'(?m)^__PREFIX__$', prefix, data)
+
+
+def create_source_data(source, destination, subs):
+    """
+    Parses config inputs -> destination.
+    Recursively goes through entire source.
+    All files in source overwrite existing file in destination
+    but any other file (state files) in destination are left
+    alone. In theory terraform is smart enough to only update
+    the deltas.
+    """
+    srcdir = Path(source).resolve()
+    dstdir = Path(destination).resolve()
+    inform("Creating source data.")
+    if not srcdir.exists():
+        inform("Source directory is missing: '{}'".format(srcdir), 11)
+    src_re = re.compile('^' + str(srcdir) + '/')
+    for src in srcdir.glob('**/*'):
+        dst = src_re.sub(str(dstdir) + '/', str(src))
+        if Path(src).is_dir():
+            # Make sure the destination directory exists
+            Path(dst).mkdir(parents=True, exist_ok=True)
+        else:
+            # Parse this file and put the output in destination
+            if re.match("\.", src.name):
+                # Skip hidden files (in particular *.swp)
+                inform("Skipping '{}'. It will not be copied to '{}'.".format(src, dstdir))
+            else:
+                inform("'{}' -> '{}'".format(str(src), dst))
+                with open(src, 'r') as f:
+                    data = parse_source_data(f.read(), subs)
+                with open(dst, 'w') as f:
+                    f.write(data)
+    return dstdir
+
+
+def run_terraform(terraform_dir):
+    """
+    Runs terraform to setup our base environment.
+    This is the big deal.
+    """
+    inform("Changing directory to '{}':".format(terraform_dir))
+    os.chdir(terraform_dir)
+    def run_cmd(*cmd):
+        cmdstr = " ".join(cmd)
+        inform("Running command: '{}':".format(cmdstr))
+        try: subprocess.run(cmd, check=True)
+        except Exception as error:
+            inform("Problem running '{}':\n{}".format(cmdstr, error), 12)
+    run_cmd("terraform", "get")
+    run_cmd("terraform", "init")
+    run_cmd("terraform", "apply", "--auto-approve")
+    return
+
+
+def subdomain(region):
+    return re.sub(r"[\.\s]", "-", 'gitlab ' + region)
+
+
+def fqdn(hostname, region):
+    return ".".join([hostname, subdomain(region), DOMAINNAME])
+
+
+def update_path():
+    # Put './bin/SYSTEM' in the path. (hack)
+    # Keep Linux/Darwin terraform executables in there.
+    # I don't like this but the alternative is to force the user
+    # to install a program they may not want to keep around and/or
+    # update their path every time they want to run this script.
+    local_path = str(Path(Path.cwd(), "bin", platform.system()))
+    inform("Appending '{}' to your PATH".format(local_path))
+    if local_path not in os.environ["PATH"].split(':'):
+        os.environ["PATH"] += ":" + local_path
+    return local_path
+
+
+def ansible_prereqs(roles):
+    ansible_out = subprocess.run(['ansible-galaxy', 'list'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    for role in roles:
+        if re.search(role, str(ansible_out.stdout)):
+            inform("Ansible role '{}' already installed.".format(role))
+        else:
+            inform("Installing ansible role: '{}'.".format(role))
+            subprocess.run(['ansible-galaxy', 'install', role])
+
+
+def check_program(program, message):
+    """
+    See if we have access to an executable.
+    """
+    inform("Checking for '{}' executable:".format(program[0]))
+    try:
+        subprocess.run(program, check=True)
+    # Can't find program
+    except FileNotFoundError:
+        inform("Can't find '{}'. Is it installed and in your path?\n{}"
+            .format(program[0], message), 15)
+    # Can't run the program I found
+    except:
+        inform("Can't run '{}'. Is the correct system type first in your $PATH?\n{}"
+            .format(program[0], message), 16)
+    return
+
+def get_availability_zones(ec2):
+    """
+    Returns two availability zones that are available in the region of interest.
+    Here's a fun fact. An availablity zone is a complete abstraction. Different
+    accounts will not only see different availability zones that are available 
+    for them to use, but, even the same named availability zone, for instance 
+    `us-west-1a`, might be, in reality, a different `zone` for one account than
+    another. Regardless, one can't count on always having the same suffix available
+    all the time. This is where we collect two zones that are available to us
+    right now.
+    """
+    response = ec2.describe_availability_zones(Filters=[{"Name": "state", "Values": ["available"]}])
+    if 'AvailabilityZones' not in response:
+        inform("Not able to retrieve availability zones in '{}'".format(region), 13)
+    # Return the two last (probably of two) zones lists.
+    return [az['ZoneName'] for az in response['AvailabilityZones']][-2:]
+
+
+def get_gitlab_app_server(dest_client, dest_region):
+    """
+    Copies our Gitlab Application Server image into this region if it's not already here.
+    Ugh - I can't make these images public. That limits the usefulness of this strategy.
+    """
+    dest_response = dest_client.describe_images(Filters=[
+            {'Name': 'tag:Ancestor-AMI-ID',  'Values': ['ami-074dd773b8f28df28']},
+            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
+        ])
+    # This, the 
+    # {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
+
+    if 'Images' not in dest_response:
+        inform("Unknown problem finding Gitlab Application AMIs. Will try to press-on.")
+        return False
+    
+    if len(dest_response['Images']):
+        inform("Gitlab Application AMIs already populated in '{}'.")
+        return True
+
+    inform("Copying Gitlab Application AMI from '{}' to '{}'.".format(
+                GITHUB_APP_SERVER_REGION, dest_region))
+
+    source_profile = get_profile(PROFILES, GITHUB_APP_SERVER_REGION)
+    source_client = get_ec2('client', profile, GITHUB_APP_SERVER_REGION)
+    source_response = source_client.describe_images(Filters=[
+            {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
+            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
+        ])
+
+    if 'Images' not in source_response:
+        inform("Unknown problem finding original Gitlab Application AMI. Will try to press-on.")
+        return False
+   
+    if not len(source_response['Images']):
+        inform("No Gitlab Application AMIs returned. Will try to press-on.")
+        return False
+
+    # I'm not sure what to do about more than a single image. A problem for
+    # a different day.
+    source_image = source_response['Images'][0]
+   
+    # AWS tags are odd one may say.
+    if 'Tags' in source_image:
+        # swap references from source to destination regions
+        val_re = re.compile(GITHUB_APP_SERVER_REGION)
+        tags = [{'Key': i['Key'], 'Value': val_re.sub(region, i['Value'])} for i in source_image['Tags']]
+
+    name = source_response['Images']['Name'] if 'Name' in source_response['Images'] else "replicant-zero"
+    description = source_response['Images']['Description'] if 'Description' in source_response['Images'] else "gitlab application ami"
+
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.copy_image
+    # Description (string) -- A description for the new AMI in the destination region.
+    # Name (string) -- [REQUIRED]   The name of the new AMI in the destination region.
+    # SourceImageId (string) -- [REQUIRED] The ID of the AMI to copy.
+    # SourceRegion (string) -- [REQUIRED] The name of the region that contains the AMI to copy.
+    # returns: { 'ImageId': 'string' }  -- ImageId: The ID of the new AMI.
+
+    response = dest_client.copy_image(
+        SourceRegion = GITHUB_APP_SERVER_REGION,
+        SourceImageId = GITHUB_APP_SERVER_AMI_ID,
+        Name = name,
+        Description = description
+    )
+
+    if 'ImageId' not in response:
+        inform("Copying the Gitlab Application server to the new region didn't work. Will try to continue.")
+        return False
+
+    response = dest_client.create_tags(Resources=[response['ImageId']], Tags=tags)
+    inform(
+"""Copy complete and apparently successful. It may take several minutes before this
+AMI becomes available - but that's OK because it's going to take us several minutes
+before we need it.""")
+    return True
+
+
+if __name__ == "__main__":
+
+    # Name of this script
+    me = Path(sys.argv[0]).name
+
+    if(len(sys.argv) != 2):
+        usage(1)
+    if((sys.argv[1] == "-h") or (sys.argv[1]) == "--help"):
+        usage(0)
+
+    # Make sure we have required programs in PATH
+    local_path = update_path()
+    requirements = (
+        (('terraform', '-version'), TERRAFORM_MESSAGE.format(local_path)),
+        (('ansible-galaxy', '--version'), ANSIBLE_MESSAGE),
+        (('ansible-playbook', '--version'), ANSIBLE_MESSAGE),
+    )
+
+    [check_program(program, message) for program, message in requirements]
+
+    # Make sure the required ansible modules are installed.
+    ansible_prereqs(ANSIBLE_ROLES)
+
+    region = sys.argv[1]
+    token = TOKEN + "." + region
+    destination_dir += "_" + region
+
+    # Create ec2 profiles/pems/terraform files
+    profile = get_profile(PROFILES, region)
+    client = get_ec2('client', profile, region)
+    resource = get_ec2('resource', profile, region)
+
+    # Makes sure we can do things in this region and
+    # ensures we have a valid pem file. Dead in the water
+    # without this being successful.
+    pem_file = check_keypair(token, profile, client, resource, region)
+
+    # Find two availability zones to use.
+    availability_zones = get_availability_zones(client)
+
+    # Ensure that we have a Gitlab 'Replicant-Zero' application
+    # server AMI available in this region.
+    ami_available = get_gitlab_app_server(client, region)
+
+    if not ami_available:
+        build_ami()
+
+    # Clunky list of substitutions to make in the config files
+    # $(_key_) -> value
+    subs = {
+        "availability_zone_0": availability_zones[0],
+        "availability_zone_1": availability_zones[1],
+        "date": str(datetime.datetime.now().isoformat()),
+        "domainname": DOMAINNAME,
+        "bastion_fqdn": fqdn(BASTION_HOSTNAME, region),
+        "bastion_hostname": BASTION_HOSTNAME,
+        "keypair": token,
+        "me": me,
+        "pemfile": str(pem_file),
+        "postgress_passwd": '|s9:^oJq#}0o',
+        "prefix": TOKEN,
+        "profile": profile,
+        "region": region,
+        "subdomainname": subdomain(region),
+        "username": USERNAME,
+        "version": VERSION
+    }
+    # Parse all the input files and place them
+    # in subdirs within `destination+region`
+    create_source_data(source_dir, destination_dir, subs)
+
+    # Run terraform
+    run_terraform(Path(destination_dir, terraform))
+
+    # What we've all been waiting for.
+    boot_ssh_cmd = ["ssh", "-A",
+                     USERNAME + "@" + fqdn(BASTION_HOSTNAME, region)]
+    inform(
+"""You should be able to login to the bastion host now:\n"
+{}
+Sometimes DNS entries take a few moments to propagate...
+If you get access denied be sure that you have your original
+credentials in your keychain. Check with `ssh.add -l`. 
+""".format(" ".join(boot_ssh_cmd)))
+
+#
+# Some nice to have haves:
+#
+#   --destroy
+#     To easily bring down everything. Until then:
+#     (cd environment_*/terraform && terraform destroy --auto-approve)
+#
+#   --user 'username'
+#     Use a different profile/credentials
+#
+#   --domain/subdomain 'name'
+#     To use a different subdomain.domain. Right now only one instance
+#     can exist at a time because of dns collision. Also, other accounts
+#     can't (I hope!) modify my domains.
+# 

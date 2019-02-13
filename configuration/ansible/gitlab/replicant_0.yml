@@ -1,0 +1,40 @@
+- hosts: all
+  become: true
+  tasks:
+
+    - name: Create mount point for gitlab-data
+      file:
+        path: /gitlab-data
+        state: directory
+    
+    - name: yum update
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Install required packages
+      yum:
+        name: ['curl', 'policycoreutils-python']
+        update_cache: yes
+
+    - name: Download the gitlab repo
+      get_url: url=https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh dest=/tmp/gitlab-script.rpm.sh
+
+    - name: Fix gitlab repo permissions
+      file:
+        path: /tmp/gitlab-script.rpm.sh
+        owner: root
+        mode: 0755
+
+    - name: Install gitlab repo 
+      shell: /tmp/gitlab-script.rpm.sh
+   
+    - name: Remove gitlab installer
+      file:
+        path: /tmp/gitlab-script.rpm.sh
+        state: absent
+
+    - name: yum install gitlab-ee
+      yum:
+        name: gitlab-ee
+        update_cache: yes

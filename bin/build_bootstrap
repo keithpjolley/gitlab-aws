@@ -1,0 +1,177 @@
+#!/bin/sh
+
+# Keith Jolley
+# Mon Feb 11 03:16:20 PST 2019
+#
+# This configures a bootstrap host ready to build the entire gitlab
+# Using this is entirely optional, it just guarantees a clean
+# environment that will reliably work with all the needed tools.
+
+# Quit right away should something bork.
+set -e
+
+me=$( basename "${0}" )
+
+if [ $# -eq 0 ]
+then
+    echo "USAGE: '${me} username"
+    echo "Creates and configures an ec2 bootstrap host"
+    echo "Uses ~/.aws/credentials_'username' for"
+    echo "AWS credentials. This will be in the default"
+    echo "region of 'username'. It's not necessarily the"
+    echo "same region as the final install will be."
+    echo "Creates ~/.aws/secret_'username'_region_.pem"
+    echo "if it doesn't already exist."
+    exit 1
+fi
+
+username="$1"
+region="$(aws configure get region)"
+
+credentials="${HOME}/.aws/credentials_${username}"
+if  [ ! -r "$credentials" ] || [ ! -f "$credentials" ]
+then
+    echo "ERROR: can't read awscred file '$credentials'"
+    exit 2
+fi
+
+instance_type="t2.micro"
+ami_id="ami-01ed306a12b7d1c96"
+
+tmp_pem_file="$(mktemp -t "${me}.pem.XXXXXXXX")"
+pem_file="${HOME}/.aws/secret_${username}_${region}.pem"
+if [ ! -f "${pem_file}" ]
+then
+    echo "Creating pem file: ${pem_file}"
+    if aws ec2 create-key-pair --key-name "${username}" --query 'KeyMaterial' --output text > "${tmp_pem_file}"
+    then
+        mv "${tmp_pem_file}" "${pem_file}"
+    fi
+    chmod 0600 "${pem_file}"
+    rm -f "${tmp_pem_file}"
+fi
+
+# This doesn't return the public ip so we need to query later.
+echo "Launching bootstrap instance."
+instance_id="$(aws ec2 run-instances --image-id "$ami_id" --instance-type "$instance_type" --key-name "${username}" \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=bootstrap_'"${username}"'}]'   \
+          | python -c 'import sys,json;print(json.load(sys.stdin)["Instances"][0]["InstanceId"])')"
+
+instances_file="$(mktemp -t "${me}.instances.XXXXXXXX")"
+#echo "instances_file=$instances_file"
+while [ "${state}" != "running" ]
+do
+    aws ec2 describe-instances --instance-ids "${instance_id}" > "${instances_file}"
+    # while this would have been much simpler with '--text' we need ipaddresses later and need the json for accuracy.
+    state="$(cat "${instances_file}" \
+                | python -c 'import sys,json;print(json.load(sys.stdin)["Reservations"][0]["Instances"][0]["State"]["Name"])')"
+    echo "Waiting for bootstrap host to boot. Current state: '${state}'."
+    sleep 5
+done
+
+PublicDnsName="$(cat "${instances_file}" | python -c 'import sys,json;print(json.load(sys.stdin)["Reservations"][0]["Instances"][0]["PublicDnsName"])')"
+PublicIpAddress="$(cat "${instances_file}" | python -c 'import sys,json;print(json.load(sys.stdin)["Reservations"][0]["Instances"][0]["PublicIpAddress"])')"
+#echo "PublicDnsName=$PublicDnsName"
+#echo "PublicIpAddress=$PublicIpAddress"
+
+# Sometimes `get-console-output` returns zero data.
+# Kicking it a couple of times seems to help.
+console_output_file="$(mktemp -t "${me}.console.XXXXXXXX")"
+#echo "console_output_file=${console_output_file}"
+n=0
+haskeys=0
+/bin/echo -n "Getting console output to make sure our ssh keys match."
+while [ "${n}" -lt 5 ] && [ "${haskeys}" -eq 0 ]
+do
+    /bin/echo -n ".."
+    aws ec2 get-console-output --instance-id "${instance_id}" --output text > "${console_output_file}"
+    (( n++ ))
+    # Because grep returns 1 if no match and '-e' is set. 
+    haskeys="$(grep -c "SSH HOST KEY FINGERPRINTS" "${console_output_file}"|cat)"
+done
+echo ""
+
+if [ "${haskeys}" -eq 0 ]
+then
+    echo "The AWS console occasionally doesn't work. Now is one of those times."
+    echo "This means we have no way of verifying our ssh keys match."
+    echo "The odds are slim that this is a problem but for production use this"
+    echo "would need to be investigated before proceeding."
+else
+    echo "The first time you ssh into this host it's going to ask you if you trust the fingerprint."
+    echo "Here are the ssh-keys as reported from the host console. There should be a match."
+    sed -n '/\(-----.* SSH HOST KEY FINGERPRINTS-----\)/,//p' "${console_output_file}" 
+fi
+echo ""
+
+echo "The bootstrap host is ready. Login with:"
+echo "ssh -A -i "${pem_file}" centos@${PublicDnsName}"
+
+
+# In case you are wondering, '-A' brings along your existing key(s) so that you
+# don't have to include the '-i pem_file' while bouncing from host with the same keys.
+# I'd use `ssh-add` but the sshd on centos only checks 6 keys before it decides
+# you are a bad guy and closes the connection. :/
+
+echo ""
+echo "Testing login. This may take a few moments while the bootstrap host finishes booting."
+echo "If successful then the next step will be install required software."
+ssh -i "${pem_file}" centos@${PublicDnsName} echo '"Success! $(hostname)"'
+
+rm -f "${console_output_file}" "${instances_file}"
+
+echo "Installing required software on the bootstrap host"
+
+ssh -i "${pem_file}" centos@${PublicDnsName} bash <<EOF
+echo ""
+echo "Updating system with 'yum'."
+sudo yum -y upgrade
+
+echo ""
+echo "Installing git and bzip."
+sudo yum -y install git bzip2
+
+echo ""
+echo "Installing 'anaconda'."
+echo "You are about to be asked to agree to a sw license."
+echo "If you can't/won't agree, no big deal. Install python 3.6 manually"
+echo "and then run the rest of this script manually."
+echo "Otherwise accept the defaults, including adding to ~/.bashrc, and press-on."
+echo "No need to install 'Visual Studio Code'."
+curl -o /tmp/anaconda.repo.sh "https://repo.anaconda.com/archive/Anaconda3-2018.12-Linux-x86_64.sh"
+bash /tmp/anaconda.repo.sh -b
+rm /tmp/anaconda.repo.sh
+
+cat >> ~/.bashrc << EOF_1
+if [ -d "${HOME}/anaconda3/bin" ]; then
+  export PATH "${PATH}:${HOME}/anaconda3/bin"
+fi
+EOF_1
+
+[ -f ~/.bashrc ] && source ~/.bashrc
+[ -f ~/anaconda3/etc/profile.d/conda.sh ] && source ~/anaconda3/etc/profile.d/conda.sh
+
+echo ""
+echo "Updating anaconda"
+conda update -y anaconda
+
+
+echo ""
+echo "Installing ansible, boto3, and terraform"
+conda install -y -c conda-forge ansible boto3 terraform
+
+echo ""
+echo "Cloning the gitlab-aws repo"
+[ ! -d gitlab-aws ] && git clone git@github.com:keithpjolley/gitlab-aws.git
+
+echo ""
+echo "Behold"
+cd gitlab-aws
+ls -CF
+
+EOF
+
+echo "The next steps are to install your credentials and then"
+echo "choose an AWS region to install Gitlab into."
+echo "When you are ready run './bootstrap.py region_name'."
+echo "Any questions please let me know!"

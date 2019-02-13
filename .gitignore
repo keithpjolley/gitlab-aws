@@ -1,0 +1,9 @@
+*.swp
+_*
+*.tfstate
+*.tfstate.backup
+bin/Darwin/*
+bin/Linux/*
+*.tgz
+environment*
+.excludes
