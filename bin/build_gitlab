@@ -24,11 +24,17 @@ import platform
 import subprocess
 from pathlib import Path
 
+# Note that changing versions will cause all (most) resources to be rebuilt.
+VERSION = "0.1"
+VERBOSE = True
+
 parser = argparse.ArgumentParser(description='Install some Gitlab.')
-parser.add_argument('--region', required=True, help='region to build the environment') 
-parser.add_argument('--profile', required=True,
+parser.add_argument('--region', help='region to build the environment') 
+parser.add_argument('--profile', 
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
-parser.add_argument('--destroy', help='Safely bring everything down.')
+parser.add_argument('--destroy', action='count', help='Safely bring everything down.')
+parser.add_argument('--verbose', action='count', help='Not yet implemented')
+parser.add_argument('--version', action='version', version=VERSION)
 parser.add_argument('--domainname', help='Not yet implemented.')
 parser.add_argument('--subdomainname', help='Not yet implemented.')
 
@@ -44,10 +50,6 @@ profile = args.profile
 source_dir = "./configuration"
 destination_dir = "./environment"
 terraform = "terraform"
-
-# Note that changing versions will cause all (most) resources to be rebuilt.
-VERSION = "0.1"
-VERBOSE = True
 
 USERNAME = "centos"
 BASTION_HOSTNAME = "bastion"
