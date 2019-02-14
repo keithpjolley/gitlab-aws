@@ -28,15 +28,13 @@ parser = argparse.ArgumentParser(description='Install some Gitlab.')
 parser.add_argument('--region', required=True, help='region to build the environment') 
 parser.add_argument('--profile', required=True,
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
+parser.add_argument('--destroy', help='Safely bring everything down.')
 parser.add_argument('--domainname', help='Not yet implemented.')
 parser.add_argument('--subdomainname', help='Not yet implemented.')
 
 args = parser.parse_args()
 region = args.region
 profile = args.profile
-
-print(region)
-print(profile)
 
 # Directory structure
 #   configuration/[terraform,ansible]
@@ -239,10 +237,9 @@ def create_source_data(source, destination, subs):
     return dstdir
 
 
-def run_terraform(terraform_dir):
+def destroy(terraform_dir):
     """
-    Runs terraform to setup our base environment.
-    This is the big deal.
+    Runs terraform destroy to cleanly bring everything down.
     """
     inform("Changing directory to '{}':".format(terraform_dir))
     os.chdir(terraform_dir)
@@ -252,9 +249,10 @@ def run_terraform(terraform_dir):
         try: subprocess.run(cmd, check=True)
         except Exception as error:
             inform("Problem running '{}':\n{}".format(cmdstr, error), 12)
-    run_cmd("terraform", "get")
-    run_cmd("terraform", "init")
-    run_cmd("terraform", "apply", "--auto-approve")
+    for i in range(5):
+        inform("{} of 5. DESTROYING ENVIRONMENT '{}':".format(i+1, terraform_dir))
+        run_cmd("sleep", "2")
+    run_cmd("terraform", "destroy")
     return
 
 
@@ -420,6 +418,11 @@ if __name__ == "__main__":
 
     destination_dir += "_" + region
 
+    if(destroy):
+        destroy(Path(destination_dir, terraform))
+
+    1/0
+
     client = get_ec2('client', profile, region)
     resource = get_ec2('resource', profile, region)
 
@@ -478,10 +481,6 @@ credentials in your keychain. Check with `ssh.add -l`.
 
 #
 # Some nice to have haves:
-#
-#   --destroy
-#     To easily bring down everything. Until then:
-#     (cd environment_*/terraform && terraform destroy --auto-approve)
 #
 #   --domain/subdomain 'name'
 #     To use a different subdomain.domain. Right now only one instance
