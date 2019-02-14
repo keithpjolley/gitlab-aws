@@ -486,8 +486,10 @@ if __name__ == "__main__":
     boot_ssh_cmd = ["ssh", "-A",
                      USERNAME + "@" + fqdn(BASTION_HOSTNAME, region)]
     inform(
-"""You should be able to login to the bastion host now:\n"
+"""You should be able to login to the bastion host now:
+
 {}
+
 Sometimes DNS entries take a few moments to propagate...
 If you get access denied be sure that you have your original
 credentials in your keychain. Check with `ssh.add -l`. 
