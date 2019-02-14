@@ -19,8 +19,9 @@ Keith Jolley
 Tue Feb 11 06:27:45 PST 2019
 """
 
-import sys
 import os
+import re
+import sys
 import boto3
 from pathlib import Path
 
