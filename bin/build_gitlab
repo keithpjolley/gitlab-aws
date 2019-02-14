@@ -41,6 +41,7 @@ parser.add_argument('--subdomainname', help='Not yet implemented.')
 args = parser.parse_args()
 region = args.region
 profile = args.profile
+destroy = args.destroy
 
 # Directory structure
 #   configuration/[terraform,ansible]
