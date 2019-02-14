@@ -163,7 +163,6 @@ def get_profile(profile, region):
     """
     credentials = Path("~/.aws", "credentials_" + profile)
     
-    os.environ["AWS_SHARED_CREDENTIALS_FILE"] = 
     for profile in profiles:
         try:
             session = boto3.session.Session(profile_name=profile, region_name=region)
