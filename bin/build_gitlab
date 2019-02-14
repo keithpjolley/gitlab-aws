@@ -447,7 +447,7 @@ if __name__ == "__main__":
         "domainname": DOMAINNAME,
         "bastion_fqdn": fqdn(BASTION_HOSTNAME, region),
         "bastion_hostname": BASTION_HOSTNAME,
-        "keypair": token,
+        "keypair": profile,
         "me": me,
         "pemfile": str(pem_file),
         "postgress_passwd": '|s9:^oJq#}0o',
