@@ -428,11 +428,6 @@ if __name__ == "__main__":
     # Name of this script
     me = Path(sys.argv[0]).name
 
-    if(len(sys.argv) != 2):
-        usage(1)
-    if((sys.argv[1] == "-h") or (sys.argv[1]) == "--help"):
-        usage(0)
-
     # Make sure we have required programs in PATH
     local_path = update_path()
     requirements = (
