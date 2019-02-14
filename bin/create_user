@@ -24,7 +24,7 @@ import os
 import boto3
 from pathlib import Path
 
-def build_user(client, iam, creator, username, policy_dir, region):
+def create_user(client, iam, creator, username, policy_dir, region):
     """
     Creates the named user using the `iam` client.
     Adds permissions to the group by importing "./policy_dir/*.json".
@@ -81,7 +81,13 @@ if __name__ == "__main__":
         print(msg.format(me))
         sys.exit(0)
 
-    username = sys.argv[1]
+    # only lowercase and dashes allowed
+    username = re.sub(r'[^\w-]|_', '-', sys.argv[1]).lower()
+
+    if(username != sys.argv[1]):
+        print("ERROR: {}: username '{}' must only contain only lowercase letters, numbers, and dashes.".format(
+            username);
+        sys.exit(1)
 
     policy_dir = './policies/group'
     if(len(sys.argv) > 2):
@@ -94,5 +100,5 @@ if __name__ == "__main__":
     client = boto3.client('iam')
     iam = boto3.resource('iam')
 
-    cred_file = build_user(client, iam, me, username, policy_dir, region)
+    cred_file = create_user(client, iam, me, username, policy_dir, region)
     print("Created credentials file: " + str(cred_file))

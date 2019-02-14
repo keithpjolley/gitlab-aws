@@ -201,6 +201,7 @@ tmp_credentials_file="$(mktemp -t "${me}.credentials.XXXXXXXX")"
   cat "${credentials}" )                                                         \
 > "${tmp_credentials_file}"
 scp -i "${pem_file}" "${tmp_credentials_file}" "centos@${PublicDnsName}:.aws/credentials"
+scp -i "${pem_file}" "${pem_file}" "centos@${PublicDnsName}:.aws/"
 (shred "${tmp_credentials_file}" | rm -f "${tmp_credentials_file}") 2>/dev/null
 
 

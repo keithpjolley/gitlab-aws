@@ -116,14 +116,14 @@ Looks in PATH and "./bin/{}/" for terraform.
     sys.exit(res)
     return
 
-def check_keypair(keyname, profile, client, resource, region):
+def check_keypair(profile, client, resource, region):
     """
     Ensures there's a valid keypair in the region AND a pem file.
     Halts if not.
     """
-    inform("Checking for key-pair '{}' in '{}'.".format(keyname, region))
+    inform("Checking for key-pair '{}' in '{}'.".format(profile, region))
     pem_dir = Path('~', '.aws').expanduser()
-    pem_file = Path(pem_dir, keyname + '.pem')
+    pem_file = Path(pem_dir, 'secret_' + profile + '.pem')
     try:
         response = client.describe_key_pairs(KeyNames=[keyname])
     except boto3.exceptions.botocore.exceptions.EndpointConnectionError:
@@ -418,7 +418,6 @@ if __name__ == "__main__":
     # Make sure the required ansible modules are installed.
     ansible_prereqs(ANSIBLE_ROLES)
 
-    token = profile + "." + region
     destination_dir += "_" + region
 
     client = get_ec2('client', profile, region)
@@ -427,7 +426,7 @@ if __name__ == "__main__":
     # Makes sure we can do things in this region and
     # ensures we have a valid pem file. Dead in the water
     # without this being successful.
-    pem_file = check_keypair(token, profile, client, resource, region)
+    pem_file = check_keypair(profile, client, resource, region)
 
     # Find two availability zones to use.
     availability_zones = get_availability_zones(client)
