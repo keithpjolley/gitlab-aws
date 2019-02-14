@@ -25,8 +25,8 @@ import subprocess
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description='Install some Gitlab.')
-parser.add_argument("region", '--region', required=True, help='region to build the environment') 
-parser.add_argument("profile", '--profile', required=True,
+parser.add_argument('--region', required=True, help='region to build the environment') 
+parser.add_argument('--profile', required=True,
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
 parser.add_argument(domainname, '--domainname', help='Not yet implemented.')
 parser.add_argument(subdomainname, '--subdomainname', help='Not yet implemented.')
