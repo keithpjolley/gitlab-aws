@@ -125,7 +125,7 @@ def check_keypair(profile, client, resource, region):
     pem_dir = Path('~', '.aws').expanduser()
     pem_file = Path(pem_dir, 'secret_' + profile + '.pem')
     try:
-        response = client.describe_key_pairs(KeyNames=[keyname])
+        response = client.describe_key_pairs(KeyNames=[profile])
     except boto3.exceptions.botocore.exceptions.EndpointConnectionError:
         inform("Couldn't verify key-pair for region '" + region + "'\n"
              + "This probably means you don't have a valid region.\n"
@@ -137,7 +137,7 @@ def check_keypair(profile, client, resource, region):
                 and 'Code' in error.response['Error']
                 and error.response['Error']['Code'] == 'InvalidKeyPair.NotFound'):
             inform("The keypair '{}' was not found. Attempting to create."
-                .format(keyname))
+                .format(profile))
             os.chmod(pem_dir, 0o700)
             if pem_file.exists():
                 inform(
@@ -145,7 +145,7 @@ def check_keypair(profile, client, resource, region):
 '{}'
 I don't want to possibly foul things up by creating a new key.
 Maybe just move the existing pem file?""".format(pem_file), 5)
-            try: key_pair_response = resource.create_key_pair(KeyName=keyname)
+            try: key_pair_response = resource.create_key_pair(KeyName=profile)
             except:
                 inform("Failed creating a new keypair:\n{}".format(sys.exc_info()[1]), 6)
             with open(pem_file, 'w') as f:
