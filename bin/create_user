@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     if(username != sys.argv[1]):
         print("ERROR: {}: username '{}' must only contain only lowercase letters, numbers, and dashes.".format(
-            username);
+            username));
         sys.exit(1)
 
     policy_dir = './policies/group'
