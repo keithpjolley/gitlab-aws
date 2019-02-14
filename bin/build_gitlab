@@ -487,4 +487,8 @@ credentials in your keychain. Check with `ssh.add -l`.
 #     To use a different subdomain.domain. Right now only one instance
 #     can exist at a time because of dns collision. Also, other accounts
 #     can't (I hope!) modify my domains.
+#
+#   --profile profile
+#     should be optional, instead figure out from the environment what 
+#     profile to use.
 # 
