@@ -35,6 +35,9 @@ args = parser.parse_args()
 region = args.region
 profile = args.profile
 
+print(region)
+print(profile)
+
 # Directory structure
 #   configuration/[terraform,ansible]
 #   destination_region/[terraform,ansible]
@@ -162,6 +165,7 @@ def get_ec2(btype, profile, region):
     Connect to an ec2 session and return a btype.
     A `btype` is one of client() or resource().
     """
+
     inform("Connecting to ec2.")
     try:
         if profile:
@@ -320,7 +324,7 @@ def get_availability_zones(ec2):
     return [az['ZoneName'] for az in response['AvailabilityZones']][-2:]
 
 
-def get_gitlab_app_server(dest_client, dest_region):
+def get_gitlab_app_server(dest_client, dest_region, profile):
     """
     Copies our Gitlab Application Server image into this region if it's not already here.
     Ugh - I can't make these images public. That limits the usefulness of this strategy.
@@ -414,7 +418,6 @@ if __name__ == "__main__":
     # Make sure the required ansible modules are installed.
     ansible_prereqs(ANSIBLE_ROLES)
 
-    region = sys.argv[1]
     token = profile + "." + region
     destination_dir += "_" + region
 
