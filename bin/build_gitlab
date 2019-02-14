@@ -434,7 +434,7 @@ if __name__ == "__main__":
 
     # Ensure that we have a Gitlab 'Replicant-Zero' application
     # server AMI available in this region.
-    ami_available = get_gitlab_app_server(client, region)
+    ami_available = get_gitlab_app_server(client, region, profile)
 
     if not ami_available:
         build_ami()
