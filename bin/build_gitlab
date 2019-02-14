@@ -236,6 +236,13 @@ def create_source_data(source, destination, subs):
                     f.write(data)
     return dstdir
 
+def run_cmd(*cmd):
+    cmdstr = " ".join(cmd)
+    inform("Running command: '{}':".format(cmdstr))
+    try: subprocess.run(cmd, check=True)
+    except Exception as error:
+        inform("Problem running '{}':\n{}".format(cmdstr, error), 12)
+
 
 def run_destroy(terraform_dir):
     """
@@ -243,16 +250,20 @@ def run_destroy(terraform_dir):
     """
     inform("Changing directory to '{}':".format(terraform_dir))
     os.chdir(terraform_dir)
-    def run_cmd(*cmd):
-        cmdstr = " ".join(cmd)
-        inform("Running command: '{}':".format(cmdstr))
-        try: subprocess.run(cmd, check=True)
-        except Exception as error:
-            inform("Problem running '{}':\n{}".format(cmdstr, error), 12)
     for i in range(5):
         inform("{} of 5. DESTROYING ENVIRONMENT '{}':".format(i+1, terraform_dir))
         run_cmd("sleep", "2")
     run_cmd("terraform", "destroy")
+    return
+
+
+def run_terraform(terraform_dir):
+    """
+    Runs terraform commands to cleanly bring everything up.
+    """
+    inform("Changing directory to '{}':".format(terraform_dir))
+    os.chdir(terraform_dir)
+    [run_cmd("terraform", command) for command in ("init", "get", "apply")]
     return
 
 
