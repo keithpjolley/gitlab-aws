@@ -7,9 +7,8 @@
 # Tested with python3.6 on Linux and Darwin
 # You must run this progam in the same directory as the source data.
 # Requires:
-#   terraform: https://www.terraform.io/downloads.html
-#   ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
-#   There are also conda installs available for terraform and ansible.
+#   terraform: conda or https://www.terraform.io/downloads.html
+#   ansible: conda or https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
 
 # May need to install this?
 import boto3
@@ -19,26 +18,28 @@ import re
 import os
 import sys
 import stat
+import argparse
 import datetime
 import platform
 import subprocess
 from pathlib import Path
 
-# This is used in all resources to help keep track of why it exists.
-# It's also the name of the *credential* I'll try to use before any
-# of the default profiles.
-TOKEN = "install-gitlab"
+parser = argparse.ArgumentParser(description='Install some Gitlab.')
+parser.add_argument(region, '--region', required=True, help='region to build the environment') 
+parser.add_argument(profile, '--profile', required=True,
+    help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
+parser.add_argument(domainname, '--domainname', help='Not yet implemented.')
+parser.add_argument(subdomainname, '--subdomainname', help='Not yet implemented.')
 
-# Add other AWS credential profiles, in order, to try. Will use the
-# first one that works. Also tries 'default' and 'ENV'. Tenacious.
-PROFILES = [TOKEN]
+args = parser.parse_args()
+print(args.accumulate(args.integers))
 
 # Directory structure
-#   source/[terraform,ansible]
+#   configuration/[terraform,ansible]
 #   destination_region/[terraform,ansible]
 # Runs terraform in `terraform` sub-dir.
 # Absolute paths haven't been tested.
-source_dir = "./source"
+source_dir = "./configuration"
 destination_dir = "./environment"
 terraform = "terraform"
 
@@ -93,7 +94,6 @@ https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.ht
 Or with conda:
 conda install -c conda-forge ansible"""
 
-
 def usage(res):
     message = """USAGE: '{} aws-region'
 
@@ -111,7 +111,6 @@ Looks in PATH and "./bin/{}/" for terraform.
     inform(message)
     sys.exit(res)
     return
-
 
 def check_keypair(keyname, profile, client, resource, region):
     """
@@ -157,11 +156,14 @@ Maybe just move the existing pem file?""".format(pem_file), 5)
     return pem_file
 
 
-def get_profile(profiles, region):
+def get_profile(profile, region):
     """
     Try to create a session using our profile. If it fails try to create
     our profile using `default`. If that fails, give up.
     """
+    credentials = Path("~/.aws", "credentials_" + profile)
+    
+    os.environ["AWS_SHARED_CREDENTIALS_FILE"] = 
     for profile in profiles:
         try:
             session = boto3.session.Session(profile_name=profile, region_name=region)

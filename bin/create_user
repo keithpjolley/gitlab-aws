@@ -24,7 +24,7 @@ import os
 import boto3
 from pathlib import Path
 
-def build_user(iam_client, iam, creator, username, policy_dir, region):
+def build_user(client, iam, creator, username, policy_dir, region):
     """
     Creates the named user using the `iam` client.
     Adds permissions to the group by importing "./policy_dir/*.json".
@@ -34,7 +34,7 @@ def build_user(iam_client, iam, creator, username, policy_dir, region):
     """
     # Create the user.
 
-    response = iam_client.create_user(
+    response = client.create_user(
         UserName = username,
         Tags = [{ 'Key': 'Created_By', 'Value': creator }]
     )
@@ -49,19 +49,27 @@ def build_user(iam_client, iam, creator, username, policy_dir, region):
         f.write('region = ' + region + '\n')
     cred_file.chmod(0o600)
 
-    response = iam_client.create_group(
+    response = client.create_group(
         GroupName = username + "_group"
     )
     group = iam.Group(response['Group']['GroupName'])
+
+    # Add the user to the group.
+    response = group.add_user(UserName=username)
+
+    group_policy = iam.GroupPolicy(
+        group_name = username + "_group",
+        name = username + "_policy"
+    )
 
     for policy_doc in Path(policy_dir).glob('**/policy_*.json'):
         # I know this works because I've tried everything that doesn't.
         with open(policy_doc) as f:
             data = f.read()
-        group_policy = group.create_policy(
-            PolicyName = username + "_group_policy",
+        response = group_policy.put(
             PolicyDocument = data
         )
+
     return cred_file
 
 if __name__ == "__main__":
@@ -69,13 +77,13 @@ if __name__ == "__main__":
     me = os.path.basename(sys.argv[0])
 
     if(len(sys.argv) < 2) or ((sys.argv[1] == "-h") or (sys.argv[1]) == "--help"):
-        msg = "USAGE: '{} name [policy_dir [region]]' -- Creates an IAM profile for the bootstrap environment."
+        msg = "USAGE: '{} name [policy_dir [default_region]]' -- Creates an IAM profile for the bootstrap environment."
         print(msg.format(me))
         sys.exit(0)
 
     username = sys.argv[1]
 
-    policy_dir = './policies/user'
+    policy_dir = './policies/group'
     if(len(sys.argv) > 2):
         policy_document = sys.argv[2]
 

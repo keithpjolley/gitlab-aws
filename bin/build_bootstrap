@@ -16,8 +16,11 @@ then
     echo "Uses ~/.aws/credentials_'username' for"
     echo "AWS credentials. This will be in the default"
     echo "region of 'username'. It's not necessarily the"
-    echo "same region as the final install will be."
-    echo "Creates ~/.aws/secret_'username'_region_.pem"
+    echo "same region as the final install will be but"
+    echo "that will be taken care of later."
+    echo "Creates ~/.aws/secret_'username'.pem"
+    echo "if it doesn't already exist."
+    echo "Creates ~/.aws/secret_'username'.pub"
     echo "if it doesn't already exist."
     exit 1
 fi
@@ -35,8 +38,12 @@ fi
 instance_type="t2.micro"
 ami_id="ami-01ed306a12b7d1c96"
 
+# mktemp has different behaviours on different os's. On some it
+# looks like I don't know what I'm doing with all the Xs, on others
+# the Xs are required.
 tmp_pem_file="$(mktemp -t "${me}.pem.XXXXXXXX")"
-pem_file="${HOME}/.aws/secret_${username}_${region}.pem"
+pem_file="${HOME}/.aws/secret_${username}.pem"
+pub_file="${HOME}/.aws/secret_${username}.pub"
 if [ ! -f "${pem_file}" ]
 then
     echo "Creating pem file: ${pem_file}"
@@ -46,6 +53,14 @@ then
     fi
     chmod 0600 "${pem_file}"
     rm -f "${tmp_pem_file}"
+fi
+ssh-keygen -y -f "${pem_file}" > "${pub_file}"
+chmod 0600 "${pem_file}"
+
+# See if we need to create the key pair in the default region:
+if ! aws ec2 describe-key-pairs --key-name "${username}" 2>/dev/null
+then
+  aws ec2 import-key-pair --key-name "${username}" --public-key-material 'file://~/.aws/secret_Bjork.pub'
 fi
 
 # This doesn't return the public ip so we need to query later.
@@ -85,6 +100,7 @@ do
     (( ++n ))  # Fun fact: (( n++ )) return 1 when n=0. (( ++n )) does not.
     # Because grep returns 1 if no match and '-e' is set. 
     haskeys="$(sed -n "/SSH HOST KEY FINGERPRINTS/p" "${console_output_file}" | wc -l)"
+    sleep 6
 done
 
 echo ""
@@ -135,50 +151,63 @@ echo "Installing git and bzip."
 sudo yum -y install git bzip2
 
 echo ""
-echo "Installing 'anaconda'."
-echo "You are about to be asked to agree to a sw license."
-echo "If you can't/won't agree, no big deal. Install python 3.6 manually"
-echo "and then run the rest of this script manually."
-echo "Otherwise accept the defaults, including adding to ~/.bashrc, and press-on."
-echo "No need to install 'Visual Studio Code'."
-curl -o /tmp/anaconda.repo.sh "https://repo.anaconda.com/archive/Anaconda3-2018.12-Linux-x86_64.sh"
-bash /tmp/anaconda.repo.sh -b
-rm /tmp/anaconda.repo.sh
+curl -o /tmp/miniconda.37.repo.sh "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+bash /tmp/miniconda.37.repo.sh -b
+rm /tmp/miniconda.37.repo.sh
 
 cat >> ~/.bashrc << EOF_1
 ##
 # added by '${me}'
 # '$(date)'
 #
-export PATH="/home/centos/gitlab-aws/bin:/home/centos/gitlab-aws/bin/Linux:/home/centos/anaconda3/bin:/usr/local/bin:/usr/bin:/usr/sbin::/home/centos/bin:"
+alias l='ls -CF'
+alias ll='ls -la'
+#
+export PATH="/home/centos/gitlab-aws/bin:/home/centos/gitlab-aws/bin/Linux:/home/centos/miniconda3/bin:/usr/local/bin:/usr/bin:/usr/sbin::/home/centos/bin:"
 #
 ##
 EOF_1
 
+[ ! -d ~/.aws ] && mkdir ~/.aws; chmod 0700 ~/.aws
 [ -f ~/.bashrc ] && source ~/.bashrc
-[ -f ~/anaconda3/etc/profile.d/conda.sh ] && source ~/anaconda3/etc/profile.d/conda.sh
+[ -f ~/miniconda3/etc/profile.d/conda.sh ] && source ~/miniconda3/etc/profile.d/conda.sh
 
 echo ""
-echo "Updating anaconda"
-conda update -y anaconda
-
+echo "Updating miniconda"
+conda update -y conda
 
 echo ""
-echo "Installing ansible, boto3, and terraform"
-conda install -y -c conda-forge ansible boto3 terraform
+echo "Installing ansible, awscli, boto3, and terraform"
+conda install -y -c conda-forge ansible awscli boto3 terraform
 
 echo ""
 echo "Cloning the gitlab-aws repo"
 git clone https://github.com/keithpjolley/gitlab-aws.git
 
 echo ""
-echo "Behold"
+echo "Behold!"
 cd gitlab-aws
+pwd
 ls -CF
 
+echo ""
 EOF
 
-echo "The next steps are to install your credentials and then"
-echo "choose an AWS region to install Gitlab into."
-echo "When you are ready run './bootstrap.py region_name'."
+# Ideally this would be done in the $ENV. Version 2.
+echo "Copying credentials to bootstrap host"
+tmp_credentials_file="$(mktemp -t "${me}.credentials.XXXXXXXX")"
+( sed  's/\(\[ *\)\('"${username}"'\)\( *\]\)/\1default\3/' "${credentials}";    \
+  echo "";                                                                       \
+  cat "${credentials}" )                                                         \
+> "${tmp_credentials_file}"
+scp -i "${pem_file}" "${tmp_credentials_file}" "centos@${PublicDnsName}:.aws/credentials"
+(shred "${tmp_credentials_file}" | rm -f "${tmp_credentials_file}") 2>/dev/null
+
+
+echo "When you are ready: run 'bootstrap.py region_name'"
 echo "Any questions please let me know!"
+echo ""
+echo "Get ready to run:"
+echo "ssh -Ai "${pem_file}" centos@${PublicDnsName}"
+echo "$ cd gitlab-aws"
+echo "$ bin/build_gitlab region"
