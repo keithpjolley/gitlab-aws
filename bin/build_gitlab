@@ -28,8 +28,8 @@ parser = argparse.ArgumentParser(description='Install some Gitlab.')
 parser.add_argument('--region', required=True, help='region to build the environment') 
 parser.add_argument('--profile', required=True,
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
-parser.add_argument(domainname, '--domainname', help='Not yet implemented.')
-parser.add_argument(subdomainname, '--subdomainname', help='Not yet implemented.')
+parser.add_argument('--domainname', help='Not yet implemented.')
+parser.add_argument('--subdomainname', help='Not yet implemented.')
 
 args = parser.parse_args()
 region = args.region
