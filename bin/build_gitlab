@@ -32,7 +32,8 @@ parser.add_argument(domainname, '--domainname', help='Not yet implemented.')
 parser.add_argument(subdomainname, '--subdomainname', help='Not yet implemented.')
 
 args = parser.parse_args()
-print(args.accumulate(args.integers))
+region = args.region
+profile = args.profile
 
 # Directory structure
 #   configuration/[terraform,ansible]
@@ -158,22 +159,20 @@ Maybe just move the existing pem file?""".format(pem_file), 5)
 
 def get_profile(profile, region):
     """
-    Try to create a session using our profile. If it fails try to create
-    our profile using `default`. If that fails, give up.
+    Try to connect to aws
     """
     credentials = Path("~/.aws", "credentials_" + profile)
     
-    for profile in profiles:
-        try:
-            session = boto3.session.Session(profile_name=profile, region_name=region)
-        except boto3.exceptions.botocore.exceptions.ProfileNotFound:
-            inform("Profile '{}' not found.".format(profile))
-        except:
-            inform("Unexpected error trying to create a session:\n{}\nWill try to press on."
-                .format(sys.exc_info()[1]))
-        else:
-            return profile
-    # try using ENV vars.
+    try:
+        session = boto3.session.Session(profile_name=profile, region_name=region)
+    except boto3.exceptions.botocore.exceptions.ProfileNotFound:
+        inform("Profile '{}' not found.".format(profile))
+    except:
+        inform("Unexpected error trying to create a session:\n{}\nWill try to press on."
+            .format(sys.exc_info()[1]))
+    else:
+        return profile
+
     try:
         session = boto3.session.Session(region_name=region)
     except:
@@ -370,7 +369,7 @@ def get_gitlab_app_server(dest_client, dest_region):
     inform("Copying Gitlab Application AMI from '{}' to '{}'.".format(
                 GITHUB_APP_SERVER_REGION, dest_region))
 
-    source_profile = get_profile(PROFILES, GITHUB_APP_SERVER_REGION)
+    source_profile = get_profile(profile, GITHUB_APP_SERVER_REGION)
     source_client = get_ec2('client', profile, GITHUB_APP_SERVER_REGION)
     source_response = source_client.describe_images(Filters=[
             {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
@@ -448,11 +447,11 @@ if __name__ == "__main__":
     ansible_prereqs(ANSIBLE_ROLES)
 
     region = sys.argv[1]
-    token = TOKEN + "." + region
+    token = username + "." + region
     destination_dir += "_" + region
 
     # Create ec2 profiles/pems/terraform files
-    profile = get_profile(PROFILES, region)
+    profile = get_profile(profile, region)
     client = get_ec2('client', profile, region)
     resource = get_ec2('resource', profile, region)
 
@@ -484,7 +483,7 @@ if __name__ == "__main__":
         "me": me,
         "pemfile": str(pem_file),
         "postgress_passwd": '|s9:^oJq#}0o',
-        "prefix": TOKEN,
+        "prefix": username,
         "profile": profile,
         "region": region,
         "subdomainname": subdomain(region),
