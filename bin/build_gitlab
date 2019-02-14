@@ -442,7 +442,7 @@ if __name__ == "__main__":
     ansible_prereqs(ANSIBLE_ROLES)
 
     region = sys.argv[1]
-    token = username + "." + region
+    token = profile + "." + region
     destination_dir += "_" + region
 
     # Create ec2 profiles/pems/terraform files
@@ -478,7 +478,7 @@ if __name__ == "__main__":
         "me": me,
         "pemfile": str(pem_file),
         "postgress_passwd": '|s9:^oJq#}0o',
-        "prefix": username,
+        "prefix": profile,
         "profile": profile,
         "region": region,
         "subdomainname": subdomain(region),
@@ -509,9 +509,6 @@ credentials in your keychain. Check with `ssh.add -l`.
 #   --destroy
 #     To easily bring down everything. Until then:
 #     (cd environment_*/terraform && terraform destroy --auto-approve)
-#
-#   --user 'username'
-#     Use a different profile/credentials
 #
 #   --domain/subdomain 'name'
 #     To use a different subdomain.domain. Right now only one instance
