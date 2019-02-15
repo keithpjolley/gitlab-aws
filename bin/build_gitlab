@@ -10,7 +10,7 @@
 #   terraform: conda or https://www.terraform.io/downloads.html
 #   ansible: conda or https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
 
-# May need to install this?
+# !Standard library
 import boto3
 
 # Standard library
@@ -66,6 +66,7 @@ GITHUB_APP_SERVER_AMI_ID = 'ami-074dd773b8f28df28'
 GITHUB_APP_SERVER_OWNER_ID = '842937609224'
 GITHUB_APP_SERVER_REGION = 'us-west-2'
 
+
 def inform(message, fatal=0):
     """
     Prints 'code: me: message' to stderr.
@@ -100,6 +101,7 @@ https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.ht
 Or with conda:
 conda install -c conda-forge ansible"""
 
+
 def usage(res):
     message = """USAGE: '{} aws-region'
 
@@ -118,6 +120,7 @@ Looks in PATH and "./bin/{}/" for terraform.
     sys.exit(res)
     return
 
+
 def check_keypair(profile, client, resource, region):
     """
     Ensures there's a valid keypair in the region AND a pem file.
@@ -126,6 +129,7 @@ def check_keypair(profile, client, resource, region):
     inform("Checking for key-pair '{}' in '{}'.".format(profile, region))
     pem_dir = Path('~', '.aws').expanduser()
     pem_file = Path(pem_dir, 'secret_' + profile + '.pem')
+
     try:
         response = client.describe_key_pairs(KeyNames=[profile])
     except boto3.exceptions.botocore.exceptions.EndpointConnectionError:
@@ -160,54 +164,6 @@ Maybe just move the existing pem file?""".format(pem_file), 5)
     if not pem_file.exists():
         inform("Expected a pem file here: {}".format(pem_file), 10)
     return pem_file
-
-
-def get_ec2(btype, profile, region):
-    """
-    Connect to an ec2 session and return a btype.
-    A `btype` is one of client() or resource().
-
-    Checks ~/.aws/credentials
-       and ~/.aws/credentials_`profile`
-    to see if they may be usable, i.e., have a [`profile`] in them.
-    """
-
-    # Of course there's a stdlib for this.
-    cred_file = str(Path("~/.aws/credentials").expanduser())
-    config = configparser.ConfigParser()
-    cred_files = config.read([cred_file, cred_file+'_'+profile])
-    inform("Checking for credentials in '{}'.".format(", ".join(cred_files)))
-    creds = False
-    try:
-        # The credentials we found
-        required =  ['aws_access_key_id', 'aws_secret_access_key']
-        if all([j in [i[0] for i in config.items(profile)] for j in required]):
-            creds = dict((a,b) for a,b in config.items(profile) if a in required)
-        else:
-            inform("Incomplete credentials found. Maybe your ENV or default will work?")
-    except NoSectionError:
-        # Credentials not found.
-        inform("No credentials found. Maybe your ENV or default will work?")
-
-    inform("Connecting to ec2.")
-    try:
-        # Try to use the credentials if we have them, if not see if the boto3
-        # can sort it out. Use 'profile_name' to not let 'default' sneak past
-        # if that's not what we want.
-        if creds:
-            session = boto3.session.Session(creds)
-        else:
-            session = boto3.session.Session(profile_name=profile, region_name=region)
-    except:
-        inform("Couldn't create a boto3 session.{}\n".format(sys.exc_info()[1]), 4)
-
-    if btype == 'client':
-        return session.client('ec2', region_name=region)
-    if btype == 'resource':
-        return session.resource('ec2', region_name=region)
-
-    inform("Error in `get_ec2() - unknown botype", 5)
-    return
 
 
 def parse_source_data(data, subs):
@@ -269,6 +225,7 @@ def create_source_data(source, destination, subs):
                 with open(dst, 'w') as f:
                     f.write(data)
     return dstdir
+
 
 def run_cmd(*cmd):
     cmdstr = " ".join(cmd)
@@ -340,6 +297,7 @@ def check_program(program, message):
             .format(program[0], message), 16)
     return
 
+
 def get_availability_zones(ec2):
     """
     Returns two availability zones that are available in the region of interest.
@@ -381,7 +339,6 @@ def get_availability_zones(ec2):
 #    inform("Copying Gitlab Application AMI from '{}' to '{}'.".format(
 #                GITHUB_APP_SERVER_REGION, dest_region))
 #
-#    source_client = get_ec2('client', profile, GITHUB_APP_SERVER_REGION)
 #    source_response = source_client.describe_images(Filters=[
 #            {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
 #            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
@@ -433,6 +390,7 @@ def get_availability_zones(ec2):
 #before we need it.""")
 #    return True
 
+
 def get_gitlab_app_server(client, region, profile):
     """
     Returns the AMI of a gitlab_app_server. Building one if needed.
@@ -467,8 +425,8 @@ if __name__ == "__main__":
     # Make sure the required ansible modules are installed.
     ansible_prereqs(ANSIBLE_ROLES)
 
-    client = get_ec2('client', profile, region)
-    resource = get_ec2('resource', profile, region)
+    client = boto3.client('ec2')
+    resource = boto3.resource('ec2')
 
     # Makes sure we can do things in this region and
     # ensures we have a valid pem file. Dead in the water
