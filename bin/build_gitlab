@@ -22,6 +22,7 @@ import argparse
 import datetime
 import platform
 import subprocess
+import configparser
 from pathlib import Path
 
 # Note that changing versions will cause all (most) resources to be rebuilt.
@@ -165,20 +166,46 @@ def get_ec2(btype, profile, region):
     """
     Connect to an ec2 session and return a btype.
     A `btype` is one of client() or resource().
+
+    Checks ~/.aws/credentials
+       and ~/.aws/credentials_`profile`
+    to see if they may be usable, i.e., have a [`profile`] in them.
     """
+
+    # Of course there's a stdlib for this.
+    cred_file = str(Path("~/.aws/credentials").expanduser())
+    config = configparser.ConfigParser()
+    cred_files = config.read([cred_file, cred_file+'_'+profile])
+    inform("Checking for credentials in '{}'.".format(", ".join(cred_files)))
+    creds = False
+    try:
+        # The credentials we found
+        required =  ['aws_access_key_id', 'aws_secret_access_key']
+        if all([j in [i[0] for i in config.items(profile)] for j in required]):
+            creds = dict((a,b) for a,b in config.items(profile) if a in required)
+        else:
+            inform("Incomplete credentials found. Maybe your ENV or default will work?")
+    except NoSectionError:
+        # Credentials not found.
+        inform("No credentials found. Maybe your ENV or default will work?")
 
     inform("Connecting to ec2.")
     try:
-        if profile:
-            session = boto3.session.Session(profile_name=profile, region_name=region)
+        # Try to use the credentials if we have them, if not see if the boto3
+        # can sort it out. Use 'profile_name' to not let 'default' sneak past
+        # if that's not what we want.
+        if creds:
+            session = boto3.session.Session(creds)
         else:
-            session = boto3.session.Session(region_name=region)
+            session = boto3.session.Session(profile_name=profile, region_name=region)
     except:
         inform("Couldn't create a boto3 session.{}\n".format(sys.exc_info()[1]), 4)
+
     if btype == 'client':
         return session.client('ec2', region_name=region)
     if btype == 'resource':
         return session.resource('ec2', region_name=region)
+
     inform("Error in `get_ec2() - unknown botype", 5)
     return
 
@@ -215,8 +242,12 @@ def create_source_data(source, destination, subs):
     alone. In theory terraform is smart enough to only update
     the deltas.
     """
+    print("$"*80)
+    print("$"*80)
     srcdir = Path(source).resolve()
     dstdir = Path(destination).resolve()
+    Path(dstdir).mkdir(parents=True, exist_ok=True)
+
     inform("Creating source data.")
     if not srcdir.exists():
         inform("Source directory is missing: '{}'".format(srcdir), 11)
@@ -245,28 +276,18 @@ def run_cmd(*cmd):
     try: subprocess.run(cmd, check=True)
     except Exception as error:
         inform("Problem running '{}':\n{}".format(cmdstr, error), 12)
-
-
-def run_destroy(terraform_dir):
-    """
-    Runs terraform destroy to cleanly bring everything down.
-    """
-    inform("Changing directory to '{}':".format(terraform_dir))
-    os.chdir(terraform_dir)
-    for i in range(5):
-        inform("{} of 5. DESTROYING ENVIRONMENT '{}':".format(i+1, terraform_dir))
-        run_cmd("sleep", "2")
-    run_cmd("terraform", "destroy")
     return
 
 
-def run_terraform(terraform_dir):
+def run_terraform(terraform_dir, build):
     """
     Runs terraform commands to cleanly bring everything up.
     """
+    if not Path(terraform_dir).exists():
+        inform("Terrform directory hasn't been configured: {}".format(terraform_dir), 20)
     inform("Changing directory to '{}':".format(terraform_dir))
     os.chdir(terraform_dir)
-    [run_cmd("terraform", command) for command in ("init", "get", "apply")]
+    [run_cmd("terraform", command) for command in (("init", "get", "apply") if build else ("destroy"))]
     return
 
 
@@ -299,6 +320,7 @@ def ansible_prereqs(roles):
         else:
             inform("Installing ansible role: '{}'.".format(role))
             subprocess.run(['ansible-galaxy', 'install', role])
+    return
 
 
 def check_program(program, message):
@@ -336,79 +358,87 @@ def get_availability_zones(ec2):
     return [az['ZoneName'] for az in response['AvailabilityZones']][-2:]
 
 
-def get_gitlab_app_server(dest_client, dest_region, profile):
-    """
-    Copies our Gitlab Application Server image into this region if it's not already here.
-    Ugh - I can't make these images public. That limits the usefulness of this strategy.
-    """
-    dest_response = dest_client.describe_images(Filters=[
-            {'Name': 'tag:Ancestor-AMI-ID',  'Values': ['ami-074dd773b8f28df28']},
-            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
-        ])
-    # This, the 
-    # {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
+#def get_gitlab_app_server(dest_client, dest_region, profile):
+#    """
+#    Copies our Gitlab Application Server image into this region if it's not already here.
+#    Ugh - I can't make these images public. That limits the usefulness of this strategy.
+#    """
+#    dest_response = dest_client.describe_images(Filters=[
+#            {'Name': 'tag:Ancestor-AMI-ID',  'Values': ['ami-074dd773b8f28df28']},
+#            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
+#        ])
+#    # This, the 
+#    # {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
+#
+#    if 'Images' not in dest_response:
+#        inform("Unknown problem finding Gitlab Application AMIs. Will try to press-on.")
+#        return False
+#    
+#    if len(dest_response['Images']):
+#        inform("Gitlab Application AMIs already populated in '{}'.")
+#        return True
+#
+#    inform("Copying Gitlab Application AMI from '{}' to '{}'.".format(
+#                GITHUB_APP_SERVER_REGION, dest_region))
+#
+#    source_client = get_ec2('client', profile, GITHUB_APP_SERVER_REGION)
+#    source_response = source_client.describe_images(Filters=[
+#            {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
+#            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
+#        ])
+#
+#    if 'Images' not in source_response:
+#        inform("Unknown problem finding original Gitlab Application AMI. Will try to press-on.")
+#        return False
+#   
+#    if not len(source_response['Images']):
+#        inform("No Gitlab Application AMIs returned. Will try to press-on.")
+#        return False
+#
+#    # I'm not sure what to do about more than a single image. A problem for
+#    # a different day.
+#    source_image = source_response['Images'][0]
+#   
+#    # AWS tags are odd one may say.
+#    if 'Tags' in source_image:
+#        # swap references from source to destination regions
+#        val_re = re.compile(GITHUB_APP_SERVER_REGION)
+#        tags = [{'Key': i['Key'], 'Value': val_re.sub(region, i['Value'])} for i in source_image['Tags']]
+#
+#    name = source_response['Images']['Name'] if 'Name' in source_response['Images'] else "replicant-zero"
+#    description = source_response['Images']['Description'] if 'Description' in source_response['Images'] else "gitlab application ami"
+#
+#    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.copy_image
+#    # Description (string) -- A description for the new AMI in the destination region.
+#    # Name (string) -- [REQUIRED]   The name of the new AMI in the destination region.
+#    # SourceImageId (string) -- [REQUIRED] The ID of the AMI to copy.
+#    # SourceRegion (string) -- [REQUIRED] The name of the region that contains the AMI to copy.
+#    # returns: { 'ImageId': 'string' }  -- ImageId: The ID of the new AMI.
+#
+#    response = dest_client.copy_image(
+#        SourceRegion = GITHUB_APP_SERVER_REGION,
+#        SourceImageId = GITHUB_APP_SERVER_AMI_ID,
+#        Name = name,
+#        Description = description
+#    )
+#
+#    if 'ImageId' not in response:
+#        inform("Copying the Gitlab Application server to the new region didn't work. Will try to continue.")
+#        return False
+#
+#    response = dest_client.create_tags(Resources=[response['ImageId']], Tags=tags)
+#    inform(
+#"""Copy complete and apparently successful. It may take several minutes before this
+#AMI becomes available - but that's OK because it's going to take us several minutes
+#before we need it.""")
+#    return True
 
-    if 'Images' not in dest_response:
-        inform("Unknown problem finding Gitlab Application AMIs. Will try to press-on.")
-        return False
+def get_gitlab_app_server(client, region, profile):
+    """
+    Returns the AMI of a gitlab_app_server. Building one if needed.
+    This is where I need Airflow...
+    """
     
-    if len(dest_response['Images']):
-        inform("Gitlab Application AMIs already populated in '{}'.")
-        return True
-
-    inform("Copying Gitlab Application AMI from '{}' to '{}'.".format(
-                GITHUB_APP_SERVER_REGION, dest_region))
-
-    source_client = get_ec2('client', profile, GITHUB_APP_SERVER_REGION)
-    source_response = source_client.describe_images(Filters=[
-            {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
-            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
-        ])
-
-    if 'Images' not in source_response:
-        inform("Unknown problem finding original Gitlab Application AMI. Will try to press-on.")
-        return False
-   
-    if not len(source_response['Images']):
-        inform("No Gitlab Application AMIs returned. Will try to press-on.")
-        return False
-
-    # I'm not sure what to do about more than a single image. A problem for
-    # a different day.
-    source_image = source_response['Images'][0]
-   
-    # AWS tags are odd one may say.
-    if 'Tags' in source_image:
-        # swap references from source to destination regions
-        val_re = re.compile(GITHUB_APP_SERVER_REGION)
-        tags = [{'Key': i['Key'], 'Value': val_re.sub(region, i['Value'])} for i in source_image['Tags']]
-
-    name = source_response['Images']['Name'] if 'Name' in source_response['Images'] else "replicant-zero"
-    description = source_response['Images']['Description'] if 'Description' in source_response['Images'] else "gitlab application ami"
-
-    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.copy_image
-    # Description (string) -- A description for the new AMI in the destination region.
-    # Name (string) -- [REQUIRED]   The name of the new AMI in the destination region.
-    # SourceImageId (string) -- [REQUIRED] The ID of the AMI to copy.
-    # SourceRegion (string) -- [REQUIRED] The name of the region that contains the AMI to copy.
-    # returns: { 'ImageId': 'string' }  -- ImageId: The ID of the new AMI.
-
-    response = dest_client.copy_image(
-        SourceRegion = GITHUB_APP_SERVER_REGION,
-        SourceImageId = GITHUB_APP_SERVER_AMI_ID,
-        Name = name,
-        Description = description
-    )
-
-    if 'ImageId' not in response:
-        inform("Copying the Gitlab Application server to the new region didn't work. Will try to continue.")
-        return False
-
-    response = dest_client.create_tags(Resources=[response['ImageId']], Tags=tags)
-    inform(
-"""Copy complete and apparently successful. It may take several minutes before this
-AMI becomes available - but that's OK because it's going to take us several minutes
-before we need it.""")
     return True
 
 
@@ -429,10 +459,9 @@ if __name__ == "__main__":
 
     destination_dir += "_" + region
 
-    try: destroy
-    except: pass
-    else:
-        run_destroy(Path(destination_dir, terraform))
+    # Minimum required to bring down the env.
+    if destroy:
+        run_terraform(Path(destination_dir, terraform), False)
         sys.exit(0)
 
     # Make sure the required ansible modules are installed.
@@ -481,7 +510,7 @@ if __name__ == "__main__":
     create_source_data(source_dir, destination_dir, subs)
 
     # Run terraform
-    run_terraform(Path(destination_dir, terraform))
+    run_terraform(Path(destination_dir, terraform), True)
 
     # What we've all been waiting for.
     boot_ssh_cmd = ["ssh", "-A",
