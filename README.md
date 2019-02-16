@@ -1,11 +1,21 @@
 
-
 # Bootstrap a GitLab Environment
 
 ## Introduction
 
 This creates a stand-alone Gitlab environment in AWS. The goal was to make it
 as simple as possible to bootstrap an entire environment from scratch.
+
+## ;tldr -- recommended process
+
+```
+# Download this code into your home directory:
+% git clone https://github.com/keithpjolley/gitlab-aws.git
+% cd ~/gitlab-aws
+
+# Create an AWS profile.
+% ./bin/create
+
 
 ## Requirements
 
