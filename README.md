@@ -13,9 +13,12 @@ as simple as possible to bootstrap an entire environment from scratch.
 % git clone https://github.com/keithpjolley/gitlab-aws.git
 % cd ~/gitlab-aws
 
-# Create an AWS profile.
-% ./bin/create
+# Create an AWS profile specific to this task.
+% ./bin/create_profile _profile_name_
 
+# Create an AWS bootstrap host that has the correct software
+# and *only* your new credentials on it.
+% ./bin/create_b
 
 ## Requirements
 
