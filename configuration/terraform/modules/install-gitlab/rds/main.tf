@@ -1,13 +1,14 @@
 variable availability_zones  { default = [] }
-variable postgress_host_type { default = "db.m4.large" }
-variable redis_host_type     { default = "cache.t2.small" }
 variable name                { }
+//variable postgres_host_type  { default = "db.m4.large" }
 variable postgress_passwd    { }
 variable prefix              { }
+variable redis_host_type     { default = "cache.t2.small" }
 variable sg_int_psql         { }
 variable sg_int_redis        { }
 variable vpc_default_db_subnet_group { }
 variable vpc_private_subnets { default = [] }
+
 variable tags                { default = {} }
 
 # `instance_class` here, `instance_type` everywhere else.
@@ -17,10 +18,10 @@ resource "aws_db_instance" "postgres" {
   engine                        = "postgres"
   engine_version                = "9.6.9"
   identifier_prefix             = "${var.prefix}"
-  instance_class                = "${var.postgress_host_type}"
+  instance_class                = "${var.tony}"
   multi_az                      = true
   name                          = "gitlabhq_production"
-  password                      = "${var.postgress_passwd}"
+  password                      = "${var.postgres_passwd}"
   skip_final_snapshot           = true
   storage_encrypted             = true
   storage_type                  = "gp2"

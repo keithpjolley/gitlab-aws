@@ -4,7 +4,9 @@
 # Keith Jolley
 # Sat Feb  9 05:11:45 PST 2019
 
-# Tested with python3.6 on Linux and Darwin
+# Main program for bringing up a Gitlab environment
+
+# Tested with python3.6/7 on Linux and Darwin
 # You must run this progam in the same directory as the source data.
 # Requires:
 #   terraform: conda or https://www.terraform.io/downloads.html
@@ -18,11 +20,14 @@ import re
 import os
 import sys
 import stat
+import time
+import string
 import argparse
 import datetime
 import platform
 import subprocess
 import configparser
+from random import choice
 from pathlib import Path
 
 # Note that changing versions will cause all (most) resources to be rebuilt.
@@ -36,8 +41,8 @@ parser.add_argument('--profile',
 parser.add_argument('--destroy', action='count', help='Safely bring everything down.')
 parser.add_argument('--verbose', action='count', help='Not yet implemented')
 parser.add_argument('--version', action='version', version=VERSION)
-parser.add_argument('--domainname', help='Not yet implemented.')
-parser.add_argument('--subdomainname', help='Not yet implemented.')
+#parser.add_argument('--domainname', help='Not yet implemented.')
+#parser.add_argument('--subdomainname', help='Not yet implemented.')
 
 args = parser.parse_args()
 region = args.region
@@ -56,15 +61,37 @@ terraform = "terraform"
 USERNAME = "centos"
 BASTION_HOSTNAME = "bastion"
 DOMAINNAME = "jamulheavyindustries.com"
+POSTGRES_PW_FILE = "postgres_password.txt"
 
 # These ansible roles are required to configure the NFS server.
 # Will attempt to install if not already.
 ANSIBLE_ROLES = ['geerlingguy.nfs', 'aloisbarreras.ebs-raid-array']
 
-# The Gitlab Application server AMI/owner IDs
-GITHUB_APP_SERVER_AMI_ID = 'ami-074dd773b8f28df28'
-GITHUB_APP_SERVER_OWNER_ID = '842937609224'
-GITHUB_APP_SERVER_REGION = 'us-west-2'
+# Note that this is a private AMI and AWS prevents me from sharing.
+# Fully automating creating an AMI at runtime added more run-time and
+# complexity for this script than I thought was good for a demo.
+# "Decisions were made."
+#
+# The terraform rules are in in place, but commented out, for creating
+# the needed AMI.
+#
+# To make your own AMI:
+#
+#   % cd environment-`region`/terraform/ (assuming you've already run this program)
+#   Uncomment the 'replicant_0' rule in `environment-`region`/terraform/main.tf`,
+#   % terraform apply
+#   Stop the new 'replicant_0' instance.
+#   Create an AMI.
+#   Change the next three lines to reflect your new "replicant_zero" AMI.
+#   Rerun this program to propagate these changes into your environment.
+#   Once this step is done once your new AMI will be copied into any regions
+#   as needed.
+
+SOURCE_GITLAB_APP_AMI_ID = "ami-07fdff39c582b0bfc"
+SOURCE_GITLAB_APP_AMI_OWNER_ID = "842937609224"
+SOURCE_GITLAB_APP_AMI_REGION = "us-west-2"
+
+DESTINATION_GITLAB_APP_AMI_NAME = "gitlab_application_server_ami"
 
 
 def inform(message, fatal=0):
@@ -129,6 +156,14 @@ def check_keypair(profile, client, resource, region):
     inform("Checking for key-pair '{}' in '{}'.".format(profile, region))
     pem_dir = Path('~', '.aws').expanduser()
     pem_file = Path(pem_dir, 'secret_' + profile + '.pem')
+    pub_file = Path(pem_dir, 'secret_' + profile + '.pub')
+
+    def make_pub_file():
+        with open(pub_file, "w") as f:
+            subprocess.call(["ssh-keygen", "-y", "-f", pem_file], stdout=f)
+        os.chmod(pem_file, 0o600)
+
+    if pem_file.exists() and not pub_file.exists(): make_pub_file()
 
     try:
         response = client.describe_key_pairs(KeyNames=[profile])
@@ -142,21 +177,28 @@ def check_keypair(profile, client, resource, region):
         if('Error' in error.response
                 and 'Code' in error.response['Error']
                 and error.response['Error']['Code'] == 'InvalidKeyPair.NotFound'):
-            inform("The keypair '{}' was not found. Attempting to create."
-                .format(profile))
-            os.chmod(pem_dir, 0o700)
-            if pem_file.exists():
-                inform(
-""""It appears you already had a key with this name in this region once:
-'{}'
-I don't want to possibly foul things up by creating a new key.
-Maybe just move the existing pem file?""".format(pem_file), 5)
-            try: key_pair_response = resource.create_key_pair(KeyName=profile)
-            except:
-                inform("Failed creating a new keypair:\n{}".format(sys.exc_info()[1]), 6)
-            with open(pem_file, 'w') as f:
-                f.write(str(key_pair_response.key_material))
-            os.chmod(pem_file, 0o600)
+            inform("The keypair '{}' was not found. Attempting to create." .format(profile))
+            if pub_file.exists():
+                # Upload the public key (good if you don't trust Amazon to create a pub key)
+                try:
+                    with open(pub_file) as f:
+                        pub_key_data = f.read()
+                    response = client.import_key_pair(
+                                    KeyName=profile,
+                                    PublicKeyMaterial=pub_key_data)
+                except:
+                    inform("Failed to import public key: '{}'.\n{}".format(pub_file, sys.exc_info()[1]), 17)
+            elif not pem_file.exists():
+                try:
+                    key_pair_response = resource.create_key_pair(KeyName=profile)
+                    with open(pem_file, 'w') as f:
+                        f.write(str(key_pair_response.key_material))
+                    os.chmod(pem_file, 0o600)
+                    make_pub_file()
+                except:
+                    inform("Failed creating a new keypair:\n{}".format(sys.exc_info()[1]), 6)
+            else:
+                inform("I'm out of options on how to proceed wrt to pem/pub key files. Punting.", 18)
         else:
             inform("Unexpected error key pairs:\n{}".format(sys.exc_info()[1]), 7)
     #else:
@@ -244,7 +286,14 @@ def run_terraform(terraform_dir, build):
         inform("Terrform directory hasn't been configured: {}".format(terraform_dir), 20)
     inform("Changing directory to '{}':".format(terraform_dir))
     os.chdir(terraform_dir)
-    [run_cmd("terraform", command) for command in (("init", "get", "apply") if build else ("destroy"))]
+    if build:
+        # Sometimes having a list of things you are going to do
+        # is easier to grok than comprehensions.
+        run_cmd("terraform", "init")
+        run_cmd("terraform", "get")
+        run_cmd("terraform", "apply", "--auto-approve")
+    else:
+        run_cmd("terraform", "destroy")
     return
 
 
@@ -298,7 +347,7 @@ def check_program(program, message):
     return
 
 
-def get_availability_zones(ec2):
+def get_availability_zones(resource):
     """
     Returns two availability zones that are available in the region of interest.
     Here's a fun fact. An availablity zone is a complete abstraction. Different
@@ -309,95 +358,122 @@ def get_availability_zones(ec2):
     all the time. This is where we collect two zones that are available to us
     right now.
     """
-    response = ec2.describe_availability_zones(Filters=[{"Name": "state", "Values": ["available"]}])
+    response = resource.describe_availability_zones(Filters=[{"Name": "state", "Values": ["available"]}])
     if 'AvailabilityZones' not in response:
         inform("Not able to retrieve availability zones in '{}'".format(region), 13)
     # Return the two last (probably of two) zones lists.
     return [az['ZoneName'] for az in response['AvailabilityZones']][-2:]
 
 
-#def get_gitlab_app_server(dest_client, dest_region, profile):
-#    """
-#    Copies our Gitlab Application Server image into this region if it's not already here.
-#    Ugh - I can't make these images public. That limits the usefulness of this strategy.
-#    """
-#    dest_response = dest_client.describe_images(Filters=[
-#            {'Name': 'tag:Ancestor-AMI-ID',  'Values': ['ami-074dd773b8f28df28']},
-#            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
-#        ])
-#    # This, the 
-#    # {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
-#
-#    if 'Images' not in dest_response:
-#        inform("Unknown problem finding Gitlab Application AMIs. Will try to press-on.")
-#        return False
-#    
-#    if len(dest_response['Images']):
-#        inform("Gitlab Application AMIs already populated in '{}'.")
-#        return True
-#
-#    inform("Copying Gitlab Application AMI from '{}' to '{}'.".format(
-#                GITHUB_APP_SERVER_REGION, dest_region))
-#
-#    source_response = source_client.describe_images(Filters=[
-#            {'Name': 'image-id', 'Values': [GITHUB_APP_SERVER_AMI_ID]},
-#            {'Name': 'owner-id', 'Values': [GITHUB_APP_SERVER_OWNER_ID]}
-#        ])
-#
-#    if 'Images' not in source_response:
-#        inform("Unknown problem finding original Gitlab Application AMI. Will try to press-on.")
-#        return False
-#   
-#    if not len(source_response['Images']):
-#        inform("No Gitlab Application AMIs returned. Will try to press-on.")
-#        return False
-#
-#    # I'm not sure what to do about more than a single image. A problem for
-#    # a different day.
-#    source_image = source_response['Images'][0]
-#   
-#    # AWS tags are odd one may say.
-#    if 'Tags' in source_image:
-#        # swap references from source to destination regions
-#        val_re = re.compile(GITHUB_APP_SERVER_REGION)
-#        tags = [{'Key': i['Key'], 'Value': val_re.sub(region, i['Value'])} for i in source_image['Tags']]
-#
-#    name = source_response['Images']['Name'] if 'Name' in source_response['Images'] else "replicant-zero"
-#    description = source_response['Images']['Description'] if 'Description' in source_response['Images'] else "gitlab application ami"
-#
-#    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Client.copy_image
-#    # Description (string) -- A description for the new AMI in the destination region.
-#    # Name (string) -- [REQUIRED]   The name of the new AMI in the destination region.
-#    # SourceImageId (string) -- [REQUIRED] The ID of the AMI to copy.
-#    # SourceRegion (string) -- [REQUIRED] The name of the region that contains the AMI to copy.
-#    # returns: { 'ImageId': 'string' }  -- ImageId: The ID of the new AMI.
-#
-#    response = dest_client.copy_image(
-#        SourceRegion = GITHUB_APP_SERVER_REGION,
-#        SourceImageId = GITHUB_APP_SERVER_AMI_ID,
-#        Name = name,
-#        Description = description
-#    )
-#
-#    if 'ImageId' not in response:
-#        inform("Copying the Gitlab Application server to the new region didn't work. Will try to continue.")
-#        return False
-#
-#    response = dest_client.create_tags(Resources=[response['ImageId']], Tags=tags)
-#    inform(
-#"""Copy complete and apparently successful. It may take several minutes before this
-#AMI becomes available - but that's OK because it's going to take us several minutes
-#before we need it.""")
-#    return True
+def create_password(length):
+    alphabet = string.ascii_letters + string.digits
+    while True:
+        password = ''.join(choice(alphabet) for i in range(length))
+        if (any(c.islower() for c in password)
+            and any(c.isupper() for c in password)
+            and sum(c.isdigit() for c in password) >= 3):
+            break
+    return password
 
+def get_gitlab_app_server_ami_id(client, dest_region):
+    """
+    Ensure there's an application server AMI available in this region, copy if not.
+    """
+    def get_newest_image(images):
+      if not images: return []
+      return sorted(images, reverse=True,
+                key=lambda k: datetime.datetime.strptime(
+                    k['CreationDate'], "%Y-%m-%dT%H:%M:%S.%fZ"))[0]
 
-def get_gitlab_app_server(client, region, profile):
-    """
-    Returns the AMI of a gitlab_app_server. Building one if needed.
-    This is where I need Airflow...
-    """
-    
-    return True
+    gitlab_app_ami_filter = {
+        'Name': 'tag:Instance',
+        'Values': [SOURCE_GITLAB_APP_AMI_INSTANCE]
+    }
+
+   # Scope of `describe_images` limited to this region.
+    response = client.describe_images(
+        Filters=[gitlab_app_ami_filter,],
+        Owners=[SOURCE_GITLAB_APP_AMI_OWNER_ID,],
+    ) 
+
+    # Done if there's a Gitlab application server AMI here already.
+    if 'Images' in response:
+        newest_image = get_newest_image(response['Images'])
+        if 'ImageId' in newest_image:
+            return newest_image['ImageId']
+
+    # Look for the source AMI.
+    remote_client = boto3.client('ec2', region_name=SOURCE_GITLAB_APP_AMI_REGION)
+    response = remote_client.describe_images(
+        ImageIds = [ SOURCE_GITLAB_APP_AMI_ID, ],
+        Owners = [ SOURCE_GITLAB_APP_AMI_OWNER_ID, ]
+    ) 
+
+    if 'Images' not in response or not response['Images']:
+        inform("""
+Couldn't find a Gitlab application AMI. Looked in '{}' and '{}'.
+Pressing on but this needs to be resolved.
+            """.format(dest_region, SOURCE_GITLAB_APP_AMI_REGION))
+        return 
+
+    # I don't think we can receive plural images but check regardless.
+    newest_image_description = get_newest_image(response['Images'])
+    if 'ImageId' not in newest_image_description:
+        inform("""
+Couldn't find a Gitlab application AMI. Looked in '{}' and '{}'.
+Pressing on but this needs to be resolved.
+            """.format(dest_region, SOURCE_GITLAB_APP_AMI_REGION))
+        return
+
+    # Copy source AMI to destination region.
+    source_ami_id = newest_image_description['ImageId']
+    response = client.copy_image(
+        SourceImageId=source_ami_id,
+        SourceRegion=SOURCE_GITLAB_APP_AMI_REGION,
+        Name=DESTINATION_GITLAB_APP_AMI_NAME,
+        Description=SOURCE_GITLAB_APP_AMI_ID + " copy from " + SOURCE_GITLAB_APP_AMI_REGION,
+    )
+
+    if 'ImageId' not in response:
+        inform("AMI copy not successful. This needs to be resolved. Pressing on.")
+        return
+
+    # Copy source AMI tags to destination.
+    dest_image_id = response['ImageId']
+    response = remote_client.describe_tags(
+                 Filters=[ {
+                   'Name': 'resource-id',
+                   'Values': [ SOURCE_GITLAB_APP_AMI_ID, ],
+                 },],
+               )
+
+    if 'Tags' not in response:
+        inform("Couldn't find the source AMIs tags.")
+        return dest_image_id
+
+    # Q. Why make the output of one function incompatible
+    #    with the input of a "sister" function?
+    # A. Schadenfreude.
+    source_tags = response['Tags']
+    response = client.create_tags(
+                Resources=[dest_image_id,],
+                Tags=[{'Key': tag['Key'], 'Value': tag['Value']} for tag in source_tags]
+              )
+
+    return dest_image_id
+
+def create_postgres_password(length, path):
+    path = Path(path, POSTGRES_PW_FILE)
+    if path.exists():
+        inform("Using postgres password from '{}'.".format(str(path)))
+        with open(path) as f:
+            password = f.read()
+    else:
+        inform("Creating postgres password, saving into file: '{}'.".format(str(path)))
+        password = create_password(length)
+        with open(str(path), 'w') as f:
+            f.write(password + '\n')
+    return password.rstrip()
 
 
 if __name__ == "__main__":
@@ -416,17 +492,20 @@ if __name__ == "__main__":
     [check_program(program, message) for program, message in requirements]
 
     destination_dir += "_" + region
+    terraform_dir = Path(destination_dir, terraform)
 
     # Minimum required to bring down the env.
     if destroy:
-        run_terraform(Path(destination_dir, terraform), False)
+        run_terraform(terraform_dir, False)
         sys.exit(0)
 
     # Make sure the required ansible modules are installed.
     ansible_prereqs(ANSIBLE_ROLES)
 
-    client = boto3.client('ec2')
-    resource = boto3.resource('ec2')
+    # Not sure that there's any advantage to re-using the
+    # same client/resoruce through the entire program.
+    client = boto3.client('ec2', region_name=region)
+    resource = boto3.resource('ec2', region_name=region)
 
     # Makes sure we can do things in this region and
     # ensures we have a valid pem file. Dead in the water
@@ -435,13 +514,13 @@ if __name__ == "__main__":
 
     # Find two availability zones to use.
     availability_zones = get_availability_zones(client)
+    inform("availability_zones: {}".format(availability_zones))
 
-    # Ensure that we have a Gitlab 'Replicant-Zero' application
+    # Ensure that we have a Gitlab 'Replicant' application
     # server AMI available in this region.
-    ami_available = get_gitlab_app_server(client, region, profile)
+    gitlab_app_server_ami_id = get_gitlab_app_server_ami_id(client, region)
 
-    if not ami_available:
-        build_ami()
+    postgres_password = create_postgres_password(12, destination_dir)
 
     # Clunky list of substitutions to make in the config files
     # $(_key_) -> value
@@ -455,7 +534,7 @@ if __name__ == "__main__":
         "keypair": profile,
         "me": me,
         "pemfile": str(pem_file),
-        "postgress_passwd": '|s9:^oJq#}0o',
+        "postgres_passwd": postgres_password,
         "prefix": profile,
         "profile": profile,
         "region": region,
@@ -468,7 +547,7 @@ if __name__ == "__main__":
     create_source_data(source_dir, destination_dir, subs)
 
     # Run terraform
-    run_terraform(Path(destination_dir, terraform), True)
+    run_terraform(terraform_dir, True)
 
     # What we've all been waiting for.
     boot_ssh_cmd = ["ssh", "-A",
@@ -481,9 +560,18 @@ if __name__ == "__main__":
 Sometimes DNS entries take a few moments to propagate...
 If you get access denied be sure that you have your original
 credentials in your keychain. Check with `ssh.add -l`. 
-""".format(" ".join(boot_ssh_cmd)))
 
-#
+VERY IMPORTANT! Your unique Postgres password is in two places,
+both of them on this host ONLY. One is in the terraform
+configuration file in '{}', the other is
+in this text file here: {}
+
+If you plan on keeping this Gitlab environment around please
+copy it to somewhere safe.
+
+""".format(" ".join(boot_ssh_cmd), terraform_dir,
+                str(Path(destination_dir, POSTGRES_PW_FILE))))
+
 # Some nice to have haves:
 #
 #   --domain/subdomain 'name'

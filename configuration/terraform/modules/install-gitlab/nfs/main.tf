@@ -55,8 +55,6 @@ resource "aws_instance" "nfs_server" {
   ))}"
 }
 
-
-
 resource "aws_ebs_volume" "gitlab_nfs_volumes" {
   availability_zone = "${element(var.availability_zones, 0)}"
   count             = "${length(local.device_names)}"
@@ -64,10 +62,8 @@ resource "aws_ebs_volume" "gitlab_nfs_volumes" {
   tags = "${var.tags}"
 }
 
-
 #################
 # Ansible trigger
-
 resource "null_resource" "nfs_server" {
   triggers {
     nfs_server_id = "${aws_instance.nfs_server.id}"
@@ -81,15 +77,14 @@ resource "null_resource" "nfs_server" {
           hostname;
           sleep 1;
         done;
-        echo "Press the snooze button to let the dust settle.";
-        echo "Give the NFS server a chance to boot.";
+        echo "Giving the NFS server a chance to boot and bring sshd up before proceeding.";
         echo "sleep 30;";
         sleep 30;
       EOF
     ]
   connection {
       user         = "${var.username}"
-      host         = "${aws_instance.nfs_server.private_ip}"
+      host         = "${aws_instance.nfs_server.public_ip}"
       private_key  = "${file(pathexpand(var.pem_file))}"
       bastion_host = "${var.bastion_public_ip}"
       bastion_user = "${var.username}"
@@ -109,9 +104,9 @@ resource "null_resource" "nfs_server" {
       true);                                                                                        \
       ansible-playbook                                                                              \
         --ssh-extra-args='-A -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'           \
-        -i "${aws_instance.nfs_server.private_ip},"                                                 \
+        -i "${aws_instance.nfs_server.public_ip},"                                                  \
         -u "${var.username}"                                                                        \
-        -e "nfs_server_hosts=${aws_instance.nfs_server.private_ip}"                                 \
+        -e "nfs_server_hosts=${aws_instance.nfs_server.public_ip}"                                  \
         -e "bastion_user=${var.username}"                                                           \
         -e "bastion_host=${var.bastion_public_ip}"                                                  \
         -e "instance_id=${aws_instance.nfs_server.id}"                                              \

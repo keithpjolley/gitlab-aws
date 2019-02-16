@@ -1,18 +1,54 @@
-/*
- * Keith Jolley
- * Sun Feb 10 05:05:19 PST 2019
- *
- * This (and all config files) are parsed. As this can be 
- * confusing try to limit all changes to this section and
- * propagate as vars (as intended). Better solution to 
- * create a separate vars file?
- *
- */
-
-
-/*** Prefix Start *******************************/
+#
+# Keith Jolley
+# Sun Feb 10 05:05:19 PST 2019
+#
+# This (and all config files) are parsed. As this can be 
+# confusing try to limit all changes to this section and
+# propagate as vars (as intended). Better solution to 
+# create a separate vars file?
+#
+#
+#############################################
+#
+# House-keeping
+#
+# Resources that have been manually imported.
+#
+# When terraform tells you it can't create a
+# resource its already created, here's how to add:
+#
+# Terraform says:
+# ...
+# * module.rds.aws_elasticache_subnet_group.ec_subnet_group_redis: 1 error(s) occurred:
+# 
+# * aws_elasticache_subnet_group.ec_subnet_group_redis: Error creating CacheSubnetGroup: \
+#   CacheSubnetGroupAlreadyExists: Cache subnet group install-gitlab-redis-subnet-group already exists.
+#
+#   status code: 400, request id: 6d30c098-2db6-11e9-8e24-358089c8950f
+# ...
+#
+# Then do this:
+#
+# Put the resource in this file (top level main) just as it is
+# in the file where the resource is defined, though you probably
+# will have to rename `var` to `module`.
+#resource "aws_elasticache_subnet_group" "ec_subnet_group_redis" {
+#  name = "${var.prefix}_vpc-redis-subnet-group"
+#  subnet_ids = ["${module.vpc.private_subnets}"]
+#}
+#
+# Then run: 
+#                    (resource definition)                              (resource id)
+# $ terraform import aws_elasticache_subnet_group.ec_subnet_group_redis install-gitlab-redis-subnet-group
+# 
+# And you should be good to go.
+#
+#
+#
+# 
+#*** Prefix Start *******************************
 __PREFIX__
-/*** Prefix End   *******************************/
+#*** Prefix End   *******************************
 
 provider "aws" {
   region  = "${var.region}"
@@ -94,15 +130,16 @@ module "nfs" {
 module "rds" {
   source              = "./modules/install_gitlab/rds"
   availability_zones  = ["${var.availability_zone_0}", "${var.availability_zone_1}"]
-  postgress_host_type = "db.m4.large"
-  redis_host_type     = "cache.t2.small"
-  name                = "${var.prefix}"
-  postgress_passwd    = "${var.postgress_passwd}"
+  name                = "rds-${var.prefix}"
+  //postgres_host_type  = "db.m4.large"
+  postgress_passwd    = "${var.postgres_passwd}"
   prefix              = "${var.prefix}"
+  redis_host_type     = "cache.t2.small"
   sg_int_psql         = "${module.security_groups.internal_psql}"
   sg_int_redis        = "${module.security_groups.internal_redis}"
   vpc_default_db_subnet_group = "${module.vpc.default_db_subnet_group}"
   vpc_private_subnets = ["${module.vpc.private_subnets}"]
+
   tags = {
     Section = "RDS"
     Prefix  = "${var.prefix}"
@@ -159,53 +196,54 @@ module "vpc" {
 }
 
 
-// `replicant` builds the prototype application server.
-// Right now I'm going to run this once and create an AMI.
-// Perhaps later it will make sense to do this programmatically
-// but there's little bang for the buck.
-// Until then, cd into the cource dir and run:
-//   terraform init
-//   terraform get
-//   terraform apply
-// This will create the prototype application server (replicant)
-// which can be made into an AMI (from the console). This AMI
-// will be hardcoded into `bootstrap.py` and copied to different
-// regions as needed (zero or one time per region).
-// This section is here to explain the above.
-
+// Use an existing AMI.
+// Build an Application Server AMI. Easier to build it and not need
+// it than the reverse. 
 //module "replicant" {
-//  source              = "./modules/install-gitlab/replicant"
+//  source              = "./modules/install-gitlab/replicant_0"
+//  ami                 = "${data.aws_ami.centos.id}"
+//  instance_type       = "t2.micro"  // this is for building the AMI
+//  key_name            = "${var.keypair}"
+//  pem_file            = "${var.pemfile}"
+//  vpc_priv_subnets    = ["${module.vpc.private_subnets}"]
+//  variable section    = "REPLICANT"
+//  tags = {
+//    Section = "Replicant"
+//    Prefix  = "${var.prefix}"
+//    Region  = "${var.region}"
+//    Version = "${var.version}"
+//    Instance= "Replicant_Zero"   // this is the "primary" key 
+//  }
 //}
 
-# House-keeping
-#############################################
-# Resources that have been manually imported.
-#
-# When terraform tells you it can't create a
-# resource its already created, here's how to add:
-#
-# Terraform says:
-# ...
-# * module.rds.aws_elasticache_subnet_group.ec_subnet_group_redis: 1 error(s) occurred:
-# 
-# * aws_elasticache_subnet_group.ec_subnet_group_redis: Error creating CacheSubnetGroup: \
-#   CacheSubnetGroupAlreadyExists: Cache subnet group install-gitlab-redis-subnet-group already exists.
-#
-#   status code: 400, request id: 6d30c098-2db6-11e9-8e24-358089c8950f
-# ...
-#
-# Then do this:
-#
-# Put the resource in this file (top level main) just as it is
-# in the file where the resource is defined, though you probably
-# will have to rename `var` to `module`.
-#resource "aws_elasticache_subnet_group" "ec_subnet_group_redis" {
-#  name = "${var.prefix}_vpc-redis-subnet-group"
-#  subnet_ids = ["${module.vpc.private_subnets}"]
-#}
-#
-# Then run: 
-#                    (resource definition)                              (resource id)
-# $ terraform import aws_elasticache_subnet_group.ec_subnet_group_redis install-gitlab-redis-subnet-group
-# 
-# And you should be good to go.
+
+module "autoscaling" {
+  source          = "./modules/install-gitlab/autoscaling"
+  name            = "${var.prefix}"
+  instance_type   = "t2.large"
+  security_groups = ["${aws_security_group.gitlab_application.id}", "${module.security_groups.internal_ssh}"]
+  key_name        = "${var.key_name}"
+  tags = {
+    Section = "AutoScaling"
+    Prefix  = "${var.prefix}"
+    Region  = "${var.region}"
+    Version = "${var.version}"
+  }
+}
+
+
+# To be clean in v2
+
+data "template_file" "gitlab_application_user_data" {
+  template = "${file("${path.module}/templates/gitlab_application_user_data.tpl")}"
+
+  vars {
+    nfs_server_private_ip = "${aws_instance.nfs_server.private_ip}"
+    postgres_database     = "${aws_db_instance.gitlab_postgres.name}"
+    postgres_username     = "${aws_db_instance.gitlab_postgres.username}"
+    postgres_password     = "${var.gitlab_postgres_password}"
+    postgres_endpoint     = "${aws_db_instance.gitlab_postgres.address}"
+    redis_endpoint        = "${aws_elasticache_replication_group.gitlab_redis.primary_endpoint_address}"
+    cidr                  = "${module.vpc.cidr_block}"
+  }
+}
