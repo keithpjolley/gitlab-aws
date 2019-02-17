@@ -35,12 +35,12 @@ VERSION = "0.1"
 VERBOSE = True
 
 parser = argparse.ArgumentParser(description='Install some Gitlab.')
-parser.add_argument('--region', help='region to build the environment') 
-parser.add_argument('--profile', 
+parser.add_argument('-r', '--region', help='region to build the environment') 
+parser.add_argument('-p', '--profile', 
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
-parser.add_argument('--destroy', action='count', help='Safely bring everything down.')
-parser.add_argument('--verbose', action='count', help='Not yet implemented')
+parser.add_argument('-d', '--destroy', action='store_true', help='Safely bring everything down.')
 parser.add_argument('--version', action='version', version=VERSION)
+#parser.add_argument('--verbose', action='store_true', help='Not yet implemented')
 #parser.add_argument('--domainname', help='Not yet implemented.')
 #parser.add_argument('--subdomainname', help='Not yet implemented.')
 
