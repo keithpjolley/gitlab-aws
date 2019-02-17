@@ -1,5 +1,4 @@
-
-# Bootstrap a GitLab Environment
+# Bootstrap a GitLab Environment in AWS
 
 ## Introduction
 
@@ -132,7 +131,14 @@ names.
 
 
 
+## Credits
 
+[Automating running GitLab on AWS with Terraform, Packer, and
+Ansible](https://medium.com/@aloisbarreras_18569/automating-running-gitlab-on-aws-with-terraform-packer-and-ansible-bf1c8724ebea)
+
+[Gitlab High Availability on AWS Best Practices](https://docs.gitlab.com/ee/university/high-availability/aws/)
+
+[Boto3 Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
 
 
 
