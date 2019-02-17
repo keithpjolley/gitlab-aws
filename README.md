@@ -50,7 +50,8 @@ with all the tools already installed and in your path.
 do it all from your existing accounts but I recommend creating a new user.
 
 The username should reflect the purpose of the task so think along the lines
-of `eng-gitlab` rather than `sally`.
+of `eng-gitlab` rather than `sally`. It's also used throughout the installation
+as a default entry so keep it short and simple (lower-case and dashes only).
 
 `% ./bin/create_profile _profilename_`
 
@@ -128,6 +129,52 @@ tested what happens if you put in a different domain or subdomain.
 My best guess is that everything will still work but you will have to
 use the long and meaningless ec2.public.ip.address.amazon.com type
 names.
+
+
+## Creating a Gitlab Application Server AMI
+
+This page left intentionally blank. Will document this more soon. There are notes in
+the relevant config files for now.
+
+
+## Notes
+"Recursive" installations are not possible because of the limited permission of the user profile. For instance,
+if you try to run `create_profile` as one of the newly created profiles you will get this error:
+```
+botocore.exceptions.ClientError: An error occurred (AccessDenied) when calling the CreateUser operation: User: arn:aws:iam::842937609224:user/sally is not authorized to perform: iam:CreateUser on resource: arn:aws:iam::842937609224:user/bob
+```
+Installing new Gitlab environments in other regions from an installed Gitlab environment should work just fine.
+
+
+## Output
+
+Here's what a typical install should look like
+
+`buzz` is an ec2 host in my default us-west-2 region.
+
+See if `ssh` is going to get in my way later. See above for why.
+```
+(buzz) $ ssh-add -L | wc -l
+6
+```
+
+Yes it will...
+```
+(buzz) $ ssh-add -D
+All identities removed.
+```
+
+Create a new profile.
+```
+(buzz) $ bin/create_profile testing
+Created credentials file: /home/ec2-user/.aws/credentials_testing
+```
+
+(tbc)
+
+
+
+
 
 
 
