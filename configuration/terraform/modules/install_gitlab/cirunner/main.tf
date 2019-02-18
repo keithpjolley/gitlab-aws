@@ -15,7 +15,7 @@ variable vpc_priv_subnets       { default = [] }
 
 # Create a security group and see if it makes
 # sense to lock it down later. I don't think so.
-resource "aws_security_group" "nfs" {
+resource "aws_security_group" "sg_cirunner" {
   vpc_id      = "${var.vpc_id}"
   name_prefix = "${var.prefix}-cirunner-"
   ingress {
@@ -41,7 +41,7 @@ resource "aws_instance" "cirunner" {
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
   subnet_id              = "${element(var.vpc_priv_subnets, 0)}"
-  vpc_security_group_ids = ["${var.nfs_sec_groups}", "${aws_security_group.nfs.id}"]
+  vpc_security_group_ids = ["${aws_security_group.sg_cirunner}"]
   tags = "${merge(var.tags, map(
     "Name", "${var.hostname}"
   ))}"

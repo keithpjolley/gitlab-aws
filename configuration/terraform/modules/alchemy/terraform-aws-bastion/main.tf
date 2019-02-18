@@ -93,3 +93,7 @@ resource "aws_eip" "bastion" {
 output "public_ip" {
   value = "${aws_eip.bastion.public_ip}"
 }
+
+output "private_ip" {
+  value = "${aws_eip.bastion.private_ip}"
+}

@@ -333,7 +333,7 @@ output "gitlab_dns_name" {
 # This really belongs in the `bastion` module.
 resource "null_resource" "bastion_user" {
   triggers {
-    nfs_server_id = "${module.bastion.bastion.id}"
+    nfs_server_id = "${module.bastion.bastion.public_ip}"
   }
   provisioner "remote-exec" {
     inline = [
@@ -359,7 +359,7 @@ resource "null_resource" "bastion_user" {
   provisioner "local-exec" {
     command = <<EOF
       (ssh-keygen -F "${module.bastion.bastion.public_ip}"                                          \
-       || ssh-keyscan -H "${module.bastion.bastion_public_ip}" >> ~/.ssh/known_hosts;               \
+       || ssh-keyscan -H "${module.bastion.bastion.public_ip}" >> ~/.ssh/known_hosts;               \
       ssh-add "${pathexpand(var.pem_file)}";                                                        \
       true);                                                                                        \
       ansible-playbook                                                                              \
