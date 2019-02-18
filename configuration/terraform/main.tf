@@ -352,7 +352,7 @@ resource "null_resource" "bastion_user" {
   connection {
       user         = "${var.username}"
       host         = "${module.bastion.private_ip}"
-      private_key  = "${file(pathexpand(var.pem_file))}"
+      private_key  = "${file(pathexpand(var.pemfile))}"
       agent        = "false"
     }
   }
