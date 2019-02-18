@@ -123,7 +123,6 @@ resource "null_resource" "nfs_server" {
         -e cidr="${var.vpc_cidr}"                                                                   \
         ../ansible/nfs/nfs-servers.yml
     EOF
-
   }
 }
 
