@@ -55,7 +55,7 @@ resource "aws_instance" "nfs_server" {
   ))}"
 }
 
-output "private_ip" {
+output "nfs_server_private_ip" {
     value = "${aws_instance.nfs_server.private_ip}"
 }
 

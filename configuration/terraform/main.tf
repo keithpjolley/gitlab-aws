@@ -242,7 +242,7 @@ data "template_file" "gitlab_application_user_data" {
     postgres_password     = "${var.postgres_password}"
     postgres_endpoint     = "${module.rds.gitlab_postgres_address}"
     //redis_endpoint        = "${aws_elasticache_replication_group.gitlab_redis.primary_endpoint_address}"
-    redis_endpoint        = "${module.rds.redis_primary_endpoint_address}"
+    redis_endpoint        = "${module.rds.gitlab_redis_primary_endpoint_address}"
     key_name              = "${var.keypair}"
     cidr                  = "${module.vpc.cidr_block}"
   }
