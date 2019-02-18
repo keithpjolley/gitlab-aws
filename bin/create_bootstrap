@@ -95,6 +95,9 @@ console_output_file="$(mktemp -t "${me}.console.XXXXXXXX")"
 
 n=0
 haskeys=0
+#
+# Something's up with the console output. It was working fine and now it's always blank.
+#
 /bin/echo -n "Getting console output to make sure our ssh keys match."
 while [ "${n}" -lt 5 ] && [ "${haskeys}" -eq 0 ]
 do
