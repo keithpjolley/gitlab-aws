@@ -194,6 +194,28 @@ module "vpc" {
   }
 }
 
+module "cirunner" {
+  source              = "./modules/install_gitlab/cirunner"
+  ami                 = "${data.aws_ami.centos.id}"
+  availability_zones  = ["${var.availability_zone_0}", "${var.availability_zone_1}"]
+  bastion_public_ip   = "${module.bastion.public_ip}"
+  hostname            = "cirunner"
+  instance_type       = "t2.micro"
+  key_name            = "${var.keypair}"
+  pem_file            = "${var.pemfile}"
+  prefix              = "${var.prefix}"
+  region              = "${var.region}"
+  username            = "${var.username}"
+  vpc_cidr            = "${var.main_cidr}"
+  vpc_id              = "${module.vpc.id}"
+  vpc_priv_subnets    = ["${module.vpc.private_subnets}"]
+  tags = {
+    Section = "CIRUNNER"
+    Prefix  = "${var.prefix}"
+    Region  = "${var.region}"
+    Version = "${var.version}"
+  }
+}
 
 // Use an existing AMI.
 // Build an Application Server AMI. Easier to build it and not need
@@ -248,21 +270,6 @@ data "template_file" "gitlab_application_user_data" {
     cidr                  = "${module.vpc.cidr_block}"
   }
 }
-
-# Find the latest available AMI that is tagged with Component = web
-/*
-data "aws_ami" "gitlab_application_ami" {
-  filter {
-    name   = "state"
-    values = ["available"]
-  }
-  filter {
-    name   = "tag:Name"
-    values = ["Replicant_Zero"]
-  }
-  most_recent = true
-}
-*/
 
 resource "aws_launch_configuration" "gitlab_application" {
   name_prefix     = "${var.prefix}-gitlab-application-"

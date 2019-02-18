@@ -1,8 +1,10 @@
 variable ami                    { }
 variable availability_zones     { default = [] }
+variable bastion_public_ip      { default = "" }
 variable hostname               { default = "cirunner" }
 variable instance_type          { default = "t2.micro" }
 variable key_name               { }
+variable pem_file               { }
 variable prefix                 { }
 variable region                 { }
 variable tags                   { default = {} }
@@ -11,10 +13,26 @@ variable vpc_cidr               { }
 variable vpc_id                 { }
 variable vpc_priv_subnets       { default = [] }
 
-// leave empty for now.
-resource "aws_security_group" "sec_group_cirunner" {
+# Create a security group and see if it makes
+# sense to lock it down later. I don't think so.
+resource "aws_security_group" "nfs" {
   vpc_id      = "${var.vpc_id}"
-  name_prefix = "${var.prefix}-cirunner-
+  name_prefix = "${var.prefix}-cirunner-"
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["${var.vpc_cidr}"]
+ }
+ ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["${var.vpc_cidr}"]
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
   tags = "${var.tags}"
 }
 
@@ -23,7 +41,7 @@ resource "aws_instance" "cirunner" {
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
   subnet_id              = "${element(var.vpc_priv_subnets, 0)}"
-  vpc_security_group_ids = ["${var.sec_group_cirunner}"]
+  vpc_security_group_ids = ["${var.nfs_sec_groups}", "${aws_security_group.nfs.id}"]
   tags = "${merge(var.tags, map(
     "Name", "${var.hostname}"
   ))}"
