@@ -50,7 +50,7 @@ resource "aws_elasticache_replication_group" "ec_replicant_group_redis" {
   subnet_group_name             = "${aws_elasticache_subnet_group.ec_subnet_group_redis.name}"
 }
 
-output "redis_endpoint_address" {
+output "redis_primary_endpoint_address" {
   value = "${aws_elasticache_replication_group.ec_replicant_group_redis.primary_endpoint_address}"
 }
 
