@@ -142,18 +142,15 @@ resource "aws_security_group" "internal_psql" {
   name_prefix = "${format("%s-%s-internal-psql-", var.name, var.environment)}"
   vpc_id      = "${var.vpc_id}"
   description = "Allows incoming psql traffic from vpc"
-
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
     cidr_blocks = ["${var.cidr}"]
   }
-
   lifecycle {
     create_before_destroy = true
   }
-
   tags = "${merge(var.tags, map("Name", format("%s", var.name), "Environment", "${var.environment}"))}"
 
 }
@@ -162,20 +159,16 @@ resource "aws_security_group" "internal_redis" {
   name_prefix = "${format("%s-%s-internal-redis-", var.name, var.environment)}"
   vpc_id      = "${var.vpc_id}"
   description = "Allows redis trafffic within the vpc"
-
   ingress {
     from_port   = 6379
     to_port     = 6379
     protocol    = "tcp"
     cidr_blocks = ["${var.cidr}"]
   }
-
   lifecycle {
     create_before_destroy = true
   }
-
   tags = "${merge(var.tags, map("Name", format("%s", var.name), "Environment", "${var.environment}"))}"
-
 }
 
 // Internal ELB allows internal traffic.
