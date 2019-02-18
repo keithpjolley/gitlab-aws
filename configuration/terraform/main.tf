@@ -217,24 +217,6 @@ module "vpc" {
 //}
 
 
-module "autoscaling" {
-  source          = "./modules/install_gitlab/autoscaling"
-  name            = "${var.prefix}"
-  instance_type   = "t2.large"
-  security_groups = ["${aws_security_group.gitlab_application.id}", "${module.security_groups.internal_ssh}"]
-  key_name        = "${var.key_name}"
-  tags = {
-    Section = "AutoScaling"
-    Prefix  = "${var.prefix}"
-    Region  = "${var.region}"
-    Version = "${var.version}"
-  }
-}
-
-
-# To be clean in v2
-
-/*
 data "template_file" "gitlab_application_user_data" {
   template = "${file("${path.module}/templates/gitlab_application_user_data.tpl")}"
 
@@ -249,13 +231,23 @@ data "template_file" "gitlab_application_user_data" {
     cidr                  = "${module.vpc.cidr_block}"
   }
 }
-variable name_prefix     { default = "gitlab-application-" }
-variable image_id        { default = "" }
-variable instance_type   { default = "" }
-variable security_groups { default = [] }
-variable key_name        { default = "" }
-variable tags            { default = "" }
 
+# To be clean in v2
+
+/*
+module "autoscaling" {
+  source          = "./modules/install_gitlab/autoscaling"
+  name            = "${var.prefix}"
+  instance_type   = "t2.large"
+  security_groups = ["${aws_security_group.gitlab_application.id}", "${module.security_groups.internal_ssh}"]
+  key_name        = "${var.key_name}"
+  tags = {
+    Section = "AutoScaling"
+    Prefix  = "${var.prefix}"
+    Region  = "${var.region}"
+    Version = "${var.version}"
+  }
+}
 */
 
 # Find the latest available AMI that is tagged with Component = web
@@ -272,9 +264,9 @@ data "aws_ami" "gitlab_application_ami" {
 }
 
 resource "aws_launch_configuration" "gitlab_application" {
-  name_prefix     = "${var.name}-gitlab-application-"
+  name_prefix     = "${var.prefix}-gitlab-application-"
   image_id        = "${var.gitlab_application_ami}"
-  instance_type   = "${var.instance_type}"
+  instance_type   = "t2.micro"
   security_groups = "${var.security_groups}"
   key_name        = "${var.key_name}"
   tags            = "${var.tags}"

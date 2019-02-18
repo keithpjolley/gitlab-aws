@@ -542,10 +542,11 @@ if __name__ == "__main__":
     subs = {
         "availability_zone_0": availability_zones[0],
         "availability_zone_1": availability_zones[1],
-        "date": str(datetime.datetime.now().isoformat()),
-        "domainname": DOMAINNAME,
         "bastion_fqdn": fqdn(BASTION_HOSTNAME, region),
         "bastion_hostname": BASTION_HOSTNAME,
+        "date": str(datetime.datetime.now().isoformat()),
+        "domainname": DOMAINNAME,
+        "gitlab_application_ami": gitlab_app_server_ami_id,
         "keypair": profile,
         "me": me,
         "pemfile": str(pem_file),
@@ -556,6 +557,7 @@ if __name__ == "__main__":
         "subdomainname": subdomain(region),
         "username": USERNAME,
         "version": VERSION
+
     }
     # Parse all the input files and place them
     # in subdirs within `destination+region`
