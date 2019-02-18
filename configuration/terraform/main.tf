@@ -112,7 +112,7 @@ module "nfs" {
   instance_type       = "t2.micro"
   key_name            = "${var.keypair}"
   nfs_sec_groups      = ["${module.security_groups.internal_ssh}"]
-  pem_file            = "${var.pemfile}"
+  pem_file            = "${var.pem_file}"
   prefix              = "${var.prefix}"
   region              = "${var.region}"
   username            = "${var.username}"
@@ -202,7 +202,7 @@ module "cirunner" {
   hostname            = "cirunner"
   instance_type       = "t2.micro"
   key_name            = "${var.keypair}"
-  pem_file            = "${var.pemfile}"
+  pem_file            = "${var.pem_file}"
   prefix              = "${var.prefix}"
   region              = "${var.region}"
   username            = "${var.username}"
@@ -225,7 +225,7 @@ module "cirunner" {
 //  ami                 = "${data.aws_ami.centos.id}"
 //  instance_type       = "t2.micro"  // this is for building the AMI
 //  key_name            = "${var.keypair}"
-//  pem_file            = "${var.pemfile}"
+//  pem_file            = "${var.pem_file}"
 //  vpc_priv_subnets    = ["${module.vpc.private_subnets}"]
 //  variable section    = "REPLICANT"
 //  tags = {
@@ -352,7 +352,7 @@ resource "null_resource" "bastion_user" {
   connection {
       user         = "${var.username}"
       host         = "${module.bastion.private_ip}"
-      private_key  = "${file(pathexpand(var.pemfile))}"
+      private_key  = "${file(pathexpand(var.pem_file))}"
       agent        = "false"
     }
   }

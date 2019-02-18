@@ -441,7 +441,7 @@ if __name__ == "__main__":
         "gitlab_application_ami": gitlab_app_server_ami_id,
         "keypair": profile,
         "me": me,
-        "pemfile": str(pem_file),
+        "pem_file": str(pem_file),
         "postgres_password": postgres_password,
         "prefix": profile,
         "profile": profile,
