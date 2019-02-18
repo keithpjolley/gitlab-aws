@@ -40,6 +40,8 @@ parser.add_argument('-p', '--profile',
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
 parser.add_argument('-d', '--destroy', action='store_true', help='Safely bring everything down.')
 parser.add_argument('--version', action='version', version=VERSION)
+#parser.add_argument('--gitlab_server_ami_id', action='gitlab_server_ami_id',
+#    help='AMI ID of the Gitlab server image in the region.')
 #parser.add_argument('--verbose', action='store_true', help='Not yet implemented')
 #parser.add_argument('--domainname', help='Not yet implemented.')
 #parser.add_argument('--subdomainname', help='Not yet implemented.')
@@ -361,27 +363,28 @@ def get_gitlab_app_server_ami_id(region, profile, client):
     """
     Return the Gitlab Application Server AMI for this region.
     """
-    # Sigh. Because other profiles can't copy AMIs pre-populate the AMIs
-    # in every region. Goofy. See extras/copy_ami.sh.
-    # This is bad.
-    # Permission to launch have to be added when this profile was created.
-    # This is badder.
-    region_ami = {
-        "ap-northeast-1" : "ami-09f055813513af711",
-        "ap-northeast-2" : "ami-0b50cdd40c8c2b246",
-        "ap-south-1"     : "ami-05175a7945879e088",
-        "ap-southeast-1" : "ami-07667a2b70b86c89c",
-        "ap-southeast-2" : "ami-0ef794d0c41209e6f",
-        "ca-central-1" : "ami-0b92dae13b3e44bec",
-        "eu-central-1" : "ami-02b914cc3320872bf",
-        "eu-north-1" : "ami-0ab9180deb89de065",
-        "eu-west-1" : "ami-0a29229fb86522bdf",
-        "eu-west-2" : "ami-0f05a6449bf35d8eb",
-        "eu-west-3" : "ami-00d1e697d702bf50b",
-        "sa-east-1" : "ami-0d290a3951a3527a6",
-        "us-east-1" : "ami-055b00fcd4fa16e29",
-        "us-east-2" : "ami-05fdc59ea810b5079",
-        "us-west-1" : "ami-05d6080881e349b31"
+    # Use this until I implement --gitlab-app-ami-id
+    # These are images I've prepopulated. This won't work
+    # for you.
+    # Because the Packer process takes 15 minutes it's
+    # outside of my self-imposed bring-up time.
+    region_ami={
+        "ap-northeast-1" : "ami-01b2ba85f56d26be6",
+        "ap-northeast-2" : "ami-0bd03308e0abd895e",
+        "ap-south-1"     : "ami-0461dd1a84260d822",
+        "ap-southeast-1" : "ami-0abda0ca2a39a58b3",
+        "ap-southeast-2" : "ami-0b02951ec8ffca8b6",
+        "ca-central-1" : "ami-0f6aedf5f1335a87d",
+        "eu-central-1" : "ami-01a801e9876830dc1",
+#        "eu-north-1" : "", # gives "not supported error"
+        "eu-west-1" : "ami-04de557e65dfb2923",
+        "eu-west-2" : "ami-0de4314ca8fe8e16f",
+        "eu-west-3" : "ami-079d8168a0c7c25c7",
+        "sa-east-1" : "ami-0e7c3c84ae76bce2c",
+        "us-east-1" : "ami-0a800ffbc6e0e5c3b",
+        "us-east-2" : "ami-0c090453692c03bca",
+#        "us-west-1" : "",
+        "us-west-2" : "ami-0fd9f4edb58f072f5",
     }
 
     if region not in region_ami:
@@ -484,7 +487,6 @@ if __name__ == "__main__":
         "subdomainname": subdomain(region),
         "username": USERNAME,
         "version": VERSION
-
     }
     # Parse all the input files and place them
     # in subdirs within `destination+region`
