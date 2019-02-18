@@ -5,9 +5,7 @@ variable security_groups { default = [] }
 variable key_name        { default = "" }
 variable tags            { default = "" }
 
-
-
-# Find the latest available AMI that is tagged with Component = web
+/*
 data "aws_ami" "gitlab_application_ami" {
   filter {
     name   = "state"
@@ -19,6 +17,7 @@ data "aws_ami" "gitlab_application_ami" {
   }
   most_recent = true
 }
+*/
 
 resource "aws_launch_configuration" "gitlab_application" {
   name_prefix     = "${var.name}-gitlab-application-"

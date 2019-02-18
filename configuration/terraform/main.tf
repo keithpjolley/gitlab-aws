@@ -250,6 +250,7 @@ data "template_file" "gitlab_application_user_data" {
 }
 
 # Find the latest available AMI that is tagged with Component = web
+/*
 data "aws_ami" "gitlab_application_ami" {
   filter {
     name   = "state"
@@ -261,6 +262,7 @@ data "aws_ami" "gitlab_application_ami" {
   }
   most_recent = true
 }
+*/
 
 resource "aws_launch_configuration" "gitlab_application" {
   name_prefix     = "${var.prefix}-gitlab-application-"
