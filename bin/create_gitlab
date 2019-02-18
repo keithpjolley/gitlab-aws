@@ -87,7 +87,7 @@ ANSIBLE_ROLES = ['geerlingguy.nfs', 'aloisbarreras.ebs-raid-array']
 #   Once this step is done once your new AMI will be copied into any regions
 #   as needed.
 
-SOURCE_GITLAB_APP_AMI_ID = "ami-07fdff39c582b0bfc"
+SOURCE_GITLAB_APP_AMI_ID = "ami-03e3f3c0654a308fd"
 SOURCE_GITLAB_APP_AMI_REGION = "us-west-2"
 SOURCE_GITLAB_APP_AMI_OWNER_ID = "842937609224"
 SOURCE_GITLAB_APP_AMI_INSTANCE = "Replicant_Zero"
@@ -397,8 +397,6 @@ def get_gitlab_app_server_ami_id(client, dest_region):
             Owners=[SOURCE_GITLAB_APP_AMI_OWNER_ID,],
         ) 
     except:
-        # `describe_images` doesn't return gracefully if
-        # there are no images.
         inform("No Gitlab Application AMI in this region")
 
     # Done if there's a Gitlab application server AMI here already.
@@ -409,10 +407,19 @@ def get_gitlab_app_server_ami_id(client, dest_region):
 
     # Look for the source AMI.
     remote_client = boto3.client('ec2', region_name=SOURCE_GITLAB_APP_AMI_REGION)
-    response = remote_client.describe_images(
-        ImageIds = [ SOURCE_GITLAB_APP_AMI_ID, ],
-        Owners = [ SOURCE_GITLAB_APP_AMI_OWNER_ID, ]
-    ) 
+    try:
+        response = remote_client.describe_images(
+            ImageIds = [ SOURCE_GITLAB_APP_AMI_ID, ],
+            Owners = [ SOURCE_GITLAB_APP_AMI_OWNER_ID, ]
+        ) 
+    except:
+        inform(
+"""Failed to find the source Gitlab Application AMI in region '{}'.
+
+{}
+
+This needs to be resolved, but pressing on.
+""".format(SOURCE_GITLAB_APP_AMI_REGION, sys.exc_info()[1]))
 
     if 'Images' not in response or not response['Images']:
         inform("""
