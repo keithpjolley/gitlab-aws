@@ -1,7 +1,7 @@
 variable availability_zones  { default = [] }
 variable name                { }
 variable postgres_host_type  { default = "db.m4.large" }
-variable postgress_password  { }
+variable postgres_password   { }
 variable prefix              { }
 variable redis_host_type     { default = "cache.t2.small" }
 variable sg_int_psql         { }
@@ -18,7 +18,7 @@ resource "aws_db_instance" "postgres" {
   engine                        = "postgres"
   engine_version                = "9.6.9"
   identifier_prefix             = "${var.prefix}"
-  instance_class                = "${var.postgress_host_type}"
+  instance_class                = "${var.postgres_host_type}"
   multi_az                      = true
   name                          = "gitlabhq_production"
   password                      = "${var.postgres_password}"
@@ -54,11 +54,11 @@ output "redis_primary_endpoint_address" {
   value = "${aws_elasticache_replication_group.ec_replicant_group_redis.primary_endpoint_address}"
 }
 
-output "postgress_username" {
+output "postgres_username" {
     value = "${aws_db_instance.postgres.username}"
 }
 
-output "gitlab_postgress_address" {
+output "gitlab_postgres_address" {
     value = "${aws_db_instance.gitlab_postgres.address}"
 }
 /*
