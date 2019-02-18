@@ -29,7 +29,7 @@ resource "aws_instance" "app_replicant_0" {
   tags = "${merge(var.tags,
                 map("Instance", "Replicant_Zero"),
                 map("Ansible",   "configuration/ansible/gitlab/replicant_0.yml"),
-                map("Terraform", "configuration/terraform/modules/install-gitlab/replicant_0"),
+                map("Terraform", "configuration/terraform/modules/install_gitlab/replicant_0"),
                 map("WARNING",   "Subject to immediate shutdown without warning!!!!")
          )}"
 }

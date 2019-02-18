@@ -200,7 +200,7 @@ module "vpc" {
 // Build an Application Server AMI. Easier to build it and not need
 // it than the reverse. 
 //module "replicant" {
-//  source              = "./modules/install-gitlab/replicant_0"
+//  source              = "./modules/install_gitlab/replicant_0"
 //  ami                 = "${data.aws_ami.centos.id}"
 //  instance_type       = "t2.micro"  // this is for building the AMI
 //  key_name            = "${var.keypair}"
@@ -218,7 +218,7 @@ module "vpc" {
 
 
 module "autoscaling" {
-  source          = "./modules/install-gitlab/autoscaling"
+  source          = "./modules/install_gitlab/autoscaling"
   name            = "${var.prefix}"
   instance_type   = "t2.large"
   security_groups = ["${aws_security_group.gitlab_application.id}", "${module.security_groups.internal_ssh}"]
