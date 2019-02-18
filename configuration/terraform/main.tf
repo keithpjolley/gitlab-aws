@@ -234,7 +234,8 @@ module "autoscaling" {
 */
 
 data "template_file" "gitlab_application_user_data" {
-  template = "${file("${path.module}/../../templates/gitlab_application_user_data.tpl")}"
+  //template = "${file("${path.module}/templates/gitlab_application_user_data.tpl")}"
+  template = "${file("./templates/gitlab_application_user_data.tpl")}"
   vars {
     nfs_server_private_ip = "${module.nfs.nfs_server_private_ip}"
     postgres_database     = "${module.rds.gitlab_postgres_dbname}"
