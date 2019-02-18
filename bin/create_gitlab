@@ -39,12 +39,12 @@ parser.add_argument('-r', '--region', help='region to build the environment')
 parser.add_argument('-p', '--profile', 
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
 parser.add_argument('-d', '--destroy', action='store_true', help='Safely bring everything down.')
-parser.add_argument('--version', action='version', version=VERSION)
-parser.add_argument('--gitlab_app_server_ami_id', action='gitlab_app_server_ami_id',
+parser.add_argument('-a', '--ami_id', action='store_true',
     help='AMI ID of the Gitlab server image in the region.')
 #parser.add_argument('--verbose', action='store_true', help='Not yet implemented')
 #parser.add_argument('--domainname', help='Not yet implemented.')
 #parser.add_argument('--subdomainname', help='Not yet implemented.')
+parser.add_argument('--version', action='version', version=VERSION)
 
 args = parser.parse_args()
 region = args.region
