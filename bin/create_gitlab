@@ -359,7 +359,7 @@ def get_availability_zones(resource):
     return [az['ZoneName'] for az in response['AvailabilityZones']][-2:]
 
 
-def get_gitlab_app_server_ami_id(region, profile, client):
+def get_gitlab_app_server_ami_id(region):
     """
     Return the Gitlab Application Server AMI for this region.
     """
@@ -463,7 +463,7 @@ if __name__ == "__main__":
 
     # Ensure that we have a Gitlab 'Replicant' application
     # server AMI available in this region.
-    gitlab_app_server_ami_id = get_gitlab_app_server_ami_id(client, region)
+    gitlab_app_server_ami_id = get_gitlab_app_server_ami_id(region)
 
     postgres_password = create_postgres_password(12, destination_dir)
 
