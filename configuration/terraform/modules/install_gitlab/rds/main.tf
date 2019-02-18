@@ -59,7 +59,7 @@ output "gitlab_postgres_address" {
 }
 
 output "gitlab_redis_primary_endpoint_address" {
-  value = "${aws_elasticache_replication_group.gitlab_redis.primary_endpoint_address}"
+  value = "${aws_elasticache_replication_group.ec_replicant_group_redis.primary_endpoint_address}"
 }
 
 
