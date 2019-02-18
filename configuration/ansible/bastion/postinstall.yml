@@ -1,0 +1,30 @@
+- hosts: all
+  become: true
+  tasks:
+
+    - name: yum update
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Install required packages
+      yum:
+        name: ['curl', 'zip', 'bzip2', 'unzip']
+        update_cache: yes
+
+    - name: Add 'kjolley' account
+      user:
+        name: kjolley
+        comment: "Keith Jolley"
+        shell: /bin/bash
+        groups: wheel
+        append: yes
+
+    - name: Add 'kenny' account
+      user:
+        name: kenny
+        comment: "Kenny Yokoyama"
+        shell: /bin/bash
+        groups: wheel
+        append: yes
+

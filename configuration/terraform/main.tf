@@ -43,7 +43,7 @@
 # 
 # And you should be good to go.
 #
-#
+# However, it's much easier to just destroy your environment and start from scratch.
 #
 # 
 #*** Prefix Start *******************************
@@ -332,7 +332,7 @@ output "gitlab_dns_name" {
 
 resource "null_resource" "bastion_user" {
   triggers {
-    nfs_server_id = "${aws_instance.bastion.id}"
+    nfs_server_id = "${module.bastion.bastion.id}"
   }
   provisioner "remote-exec" {
     inline = [
