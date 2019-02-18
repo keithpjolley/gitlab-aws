@@ -330,6 +330,7 @@ output "gitlab_dns_name" {
 }
 
 
+# This really belongs in the `bastion` module.
 resource "null_resource" "bastion_user" {
   triggers {
     nfs_server_id = "${module.bastion.bastion.id}"
@@ -350,20 +351,20 @@ resource "null_resource" "bastion_user" {
     ]
   connection {
       user         = "${var.username}"
-      host         = "${aws_instance.nfs_server.private_ip}"
+      host         = "${module.bastion.bastion.private_ip}"
       private_key  = "${file(pathexpand(var.pem_file))}"
       agent        = "false"
     }
   }
   provisioner "local-exec" {
     command = <<EOF
-      (ssh-keygen -F "${var.bastion_public_ip}"                                                     \
-       || ssh-keyscan -H "${var.bastion_public_ip}" >> ~/.ssh/known_hosts;                          \
+      (ssh-keygen -F "${module.bastion.bastion.public_ip}"                                          \
+       || ssh-keyscan -H "${module.bastion.bastion_public_ip}" >> ~/.ssh/known_hosts;               \
       ssh-add "${pathexpand(var.pem_file)}";                                                        \
       true);                                                                                        \
       ansible-playbook                                                                              \
         --ssh-extra-args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'              \
-        -i "${aws_instance.nfs_server.private_ip},"                                                 \
+        -i "${module.bastion.bastion.private_ip},"                                                  \
         -u "${var.username}"                                                                        \
         ../ansible/bastion/postinstall.yml
     EOF
