@@ -88,10 +88,10 @@ ANSIBLE_ROLES = ['geerlingguy.nfs', 'aloisbarreras.ebs-raid-array']
 #   as needed.
 
 SOURCE_GITLAB_APP_AMI_ID = "ami-07fdff39c582b0bfc"
-SOURCE_GITLAB_APP_AMI_OWNER_ID = "842937609224"
 SOURCE_GITLAB_APP_AMI_REGION = "us-west-2"
-DESTINATION_GITLAB_APP_AMI_NAME = "gitlab_application_server_ami"
+SOURCE_GITLAB_APP_AMI_OWNER_ID = "842937609224"
 SOURCE_GITLAB_APP_AMI_INSTANCE = "Replicant_Zero"
+DESTINATION_GITLAB_APP_AMI_NAME = "gitlab_application_server_ami"
 
 
 def inform(message, fatal=0):
@@ -391,10 +391,15 @@ def get_gitlab_app_server_ami_id(client, dest_region):
     }
 
    # Scope of `describe_images` limited to this region.
-    response = client.describe_images(
-        Filters=[gitlab_app_ami_filter,],
-        Owners=[SOURCE_GITLAB_APP_AMI_OWNER_ID,],
-    ) 
+    try:
+        response = client.describe_images(
+            Filters=[gitlab_app_ami_filter,],
+            Owners=[SOURCE_GITLAB_APP_AMI_OWNER_ID,],
+        ) 
+    except:
+        # `describe_images` doesn't return gracefully if
+        # there are no images.
+        inform("No Gitlab Application AMI in this region")
 
     # Done if there's a Gitlab application server AMI here already.
     if 'Images' in response:
