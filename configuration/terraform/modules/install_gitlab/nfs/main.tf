@@ -88,18 +88,21 @@ resource "null_resource" "nfs_server" {
     ]
   connection {
       user         = "${var.username}"
-      host         = "${aws_instance.nfs_server.public_ip}"
+      host         = "${aws_instance.nfs_server.private_ip}"
       private_key  = "${file(pathexpand(var.pem_file))}"
       bastion_host = "${var.bastion_public_ip}"
       bastion_user = "${var.username}"
+	agent="false"
     }
   }
+
   # `local` refers to the host that is running terraform
   # Success!!!!  This bit of ssh tomfoolery was what was needed to get this to work without
   # intervention. The ssh-keygen checks if we've got a key for the bastion host, if not,
   # it gets it. The ssh-add makes sure we have our private key in our envionronment. Finally,
   # the "--ssh-extra-args" forward our credentials and turn off having to manually enter "OK"
   # on our first login to the host.
+
   provisioner "local-exec" {
     command = <<EOF
       (ssh-keygen -F "${var.bastion_public_ip}"                                                     \
@@ -107,10 +110,10 @@ resource "null_resource" "nfs_server" {
       ssh-add "${pathexpand(var.pem_file)}";                                                        \
       true);                                                                                        \
       ansible-playbook                                                                              \
-        --ssh-extra-args='-A -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'           \
-        -i "${aws_instance.nfs_server.public_ip},"                                                  \
+        --ssh-extra-args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'           \
+        -i "${aws_instance.nfs_server.private_ip},"                                                  \
         -u "${var.username}"                                                                        \
-        -e "nfs_server_hosts=${aws_instance.nfs_server.public_ip}"                                  \
+        -e "nfs_server_hosts=${aws_instance.nfs_server.private_ip}"                                  \
         -e "bastion_user=${var.username}"                                                           \
         -e "bastion_host=${var.bastion_public_ip}"                                                  \
         -e "instance_id=${aws_instance.nfs_server.id}"                                              \
@@ -123,3 +126,4 @@ resource "null_resource" "nfs_server" {
 
   }
 }
+
