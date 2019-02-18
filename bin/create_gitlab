@@ -91,7 +91,7 @@ SOURCE_GITLAB_APP_AMI_ID = "ami-07fdff39c582b0bfc"
 SOURCE_GITLAB_APP_AMI_OWNER_ID = "842937609224"
 SOURCE_GITLAB_APP_AMI_REGION = "us-west-2"
 DESTINATION_GITLAB_APP_AMI_NAME = "gitlab_application_server_ami"
-DESTINATION_GITLAB_APP_AMI_INSTANCE = "Replicant_Zero"
+SOURCE_GITLAB_APP_AMI_INSTANCE = "Replicant_Zero"
 
 
 def inform(message, fatal=0):
