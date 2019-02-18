@@ -2,12 +2,12 @@
   "variables": {
     "name": null,
     "profile": null,
-    "aws_region": null,
+    "region": null
   },
   "builders": [
     {
       "type": "amazon-ebs",
-      "region": "{{user `aws_region`}}",
+      "region": "{{user `region`}}",
       "profile": "{{user `profile`}}",
       "source_ami_filter": {
         "filters": {
@@ -31,7 +31,7 @@
   "provisioners": [
     {
       "type": "ansible",
-      "playbook_file": "../ansible/gitlab.yml"
+      "playbook_file": "../ansible/gitlab/replicant_0.yml"
     }
   ]
 }
