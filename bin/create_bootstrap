@@ -145,7 +145,7 @@ done
 echo "Installing required software on the bootstrap host"
 
 # This should be moved to ansible.
-ssh -i "${pem_file}" centos@${PublicDnsName} bash <<EOF
+ssh -A -i "${pem_file}" centos@${PublicDnsName} bash <<EOF
 echo ""
 echo "Updating system with 'yum'."
 sudo yum -y upgrade
