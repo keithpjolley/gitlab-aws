@@ -239,22 +239,6 @@ module "cirunner" {
 
 # To be clean in v2
 
-/*
-module "autoscaling" {
-  source          = "./modules/install_gitlab/autoscaling"
-  name            = "${var.prefix}"
-  instance_type   = "t2.large"
-  security_groups = ["${aws_security_group.gitlab_application.id}", "${module.security_groups.internal_ssh}"]
-  key_name        = "${var.key_name}"
-  tags = {
-    Section = "AutoScaling"
-    Prefix  = "${var.prefix}"
-    Region  = "${var.region}"
-    Version = "${var.version}"
-  }
-}
-*/
-
 data "template_file" "gitlab_application_user_data" {
   //template = "${file("${path.module}/templates/gitlab_application_user_data.tpl")}"
   template = "${file("./templates/gitlab_application_user_data.tpl")}"
@@ -344,3 +328,45 @@ resource "aws_security_group" "gitlab_application" {
 output "gitlab_dns_name" {
   value = "${aws_elb.gitlab_application.dns_name}"
 }
+
+
+resource "null_resource" "bastion_user" {
+  triggers {
+    nfs_server_id = "${aws_instance.bastion.id}"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      <<EOF
+        while [ ! -f /var/lib/cloud/instance/boot-finished ];
+        do
+          echo -e "\033[1;36mWaiting for cloud-init...";
+          hostname;
+          sleep 1;
+        done;
+        echo "Giving the bastion host a chance to boot and bring sshd up before proceeding.";
+        echo "sleep 30;";
+        sleep 30;
+      EOF
+    ]
+  connection {
+      user         = "${var.username}"
+      host         = "${aws_instance.nfs_server.private_ip}"
+      private_key  = "${file(pathexpand(var.pem_file))}"
+      agent        = "false"
+    }
+  }
+  provisioner "local-exec" {
+    command = <<EOF
+      (ssh-keygen -F "${var.bastion_public_ip}"                                                     \
+       || ssh-keyscan -H "${var.bastion_public_ip}" >> ~/.ssh/known_hosts;                          \
+      ssh-add "${pathexpand(var.pem_file)}";                                                        \
+      true);                                                                                        \
+      ansible-playbook                                                                              \
+        --ssh-extra-args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'              \
+        -i "${aws_instance.nfs_server.private_ip},"                                                 \
+        -u "${var.username}"                                                                        \
+        ../ansible/bastion/postinstall.yml
+    EOF
+  }
+}
+
