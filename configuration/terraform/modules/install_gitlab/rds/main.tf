@@ -50,19 +50,17 @@ resource "aws_elasticache_replication_group" "ec_replicant_group_redis" {
   subnet_group_name             = "${aws_elasticache_subnet_group.ec_subnet_group_redis.name}"
 }
 
-output "redis_primary_endpoint_address" {
-  value = "${aws_elasticache_replication_group.ec_replicant_group_redis.primary_endpoint_address}"
-}
-
 output "postgres_username" {
     value = "${aws_db_instance.postgres.username}"
 }
 
 output "gitlab_postgres_address" {
-    value = "${aws_db_instance.gitlab_postgres.address}"
+  value = "${aws_db_instance.gitlab_postgres.address}"
 }
-/*
-output "rep_grp_gitlab_redis" {
-    value = "${aws_elasticache_replication_group.gitlab_redis.}"
+
+output "gitlab_redis_primary_endpoint_address" {
+  value = "${aws_elasticache_replication_group.gitlab_redis.primary_endpoint_address}"
 }
-*/
+
+
+
