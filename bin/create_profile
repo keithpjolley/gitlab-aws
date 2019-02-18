@@ -69,11 +69,45 @@ def create_user(client, iam, creator, username, policy_dir, region):
             PolicyDocument = data
         )
 
-    # allow this user to launch/copy(?) the gitlab app ami
-    group = iam.Group('gitlab_app_ami_permissions')
-    group.add_user(UserName=username) 
+    give_perms_to_gitlab_app_server(user)
 
     return cred_file
+
+
+def give_perms_to_gitlab_app_server(user):
+    # This is bad.
+    region_ami = {
+        "ap-northeast-1" : "ami-09f055813513af711",
+        "ap-northeast-2" : "ami-0b50cdd40c8c2b246",
+        "ap-south-1"     : "ami-05175a7945879e088",
+        "ap-southeast-1" : "ami-07667a2b70b86c89c",
+        "ap-southeast-2" : "ami-0ef794d0c41209e6f",
+        "ca-central-1" : "ami-0b92dae13b3e44bec",
+        "eu-central-1" : "ami-02b914cc3320872bf",
+        "eu-north-1" : "ami-0ab9180deb89de065",
+        "eu-west-1" : "ami-0a29229fb86522bdf",
+        "eu-west-2" : "ami-0f05a6449bf35d8eb",
+        "eu-west-3" : "ami-00d1e697d702bf50b",
+        "sa-east-1" : "ami-0d290a3951a3527a6",
+        "us-east-1" : "ami-055b00fcd4fa16e29",
+        "us-east-2" : "ami-05fdc59ea810b5079",
+        "us-west-1" : "ami-05d6080881e349b31",
+        "us-west-2" : "ami-03e3f3c0654a308fd",
+    }
+
+    def add_profile(region):
+        client = boto3.client('ec2', region_name=region)
+        return client.modify_image_attribute(
+            ImageId=region_ami[region],
+            LaunchPermission={'Add':[{'UserId':user.user_name}]}
+        )
+    add_profile('eu-west-1')
+    
+        
+    [add_profile(region) for region in region_ami]
+
+    return
+
 
 if __name__ == "__main__":
 

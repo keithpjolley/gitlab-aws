@@ -87,13 +87,6 @@ ANSIBLE_ROLES = ['geerlingguy.nfs', 'aloisbarreras.ebs-raid-array']
 #   Once this step is done once your new AMI will be copied into any regions
 #   as needed.
 
-SOURCE_GITLAB_APP_AMI_ID = "ami-03e3f3c0654a308fd"
-SOURCE_GITLAB_APP_AMI_REGION = "us-west-2"
-SOURCE_GITLAB_APP_AMI_OWNER_ID = "842937609224"
-SOURCE_GITLAB_APP_AMI_INSTANCE = "Replicant_Zero"
-DESTINATION_GITLAB_APP_AMI_NAME = "gitlab_application_server_ami"
-
-
 def inform(message, fatal=0):
     """
     Prints 'code: me: message' to stderr.
@@ -364,104 +357,38 @@ def get_availability_zones(resource):
     return [az['ZoneName'] for az in response['AvailabilityZones']][-2:]
 
 
-def get_gitlab_app_server_ami_id(client, dest_region):
+def get_gitlab_app_server_ami_id(region, profile, client):
     """
-    Ensure there's an application server AMI available in this region, copy if not.
+    Return the Gitlab Application Server AMI for this region.
     """
-    def get_newest_image(images):
-      if not images: return []
-      return sorted(images, reverse=True,
-                key=lambda k: datetime.datetime.strptime(
-                    k['CreationDate'], "%Y-%m-%dT%H:%M:%S.%fZ"))[0]
-
-    gitlab_app_ami_filter = {
-        'Name': 'tag:Instance',
-        'Values': [SOURCE_GITLAB_APP_AMI_INSTANCE]
+    # Sigh. Because other profiles can't copy AMIs pre-populate the AMIs
+    # in every region. Goofy. See extras/copy_ami.sh.
+    # This is bad.
+    # Permission to launch have to be added when this profile was created.
+    # This is badder.
+    region_ami = {
+        "ap-northeast-1" : "ami-09f055813513af711",
+        "ap-northeast-2" : "ami-0b50cdd40c8c2b246",
+        "ap-south-1"     : "ami-05175a7945879e088",
+        "ap-southeast-1" : "ami-07667a2b70b86c89c",
+        "ap-southeast-2" : "ami-0ef794d0c41209e6f",
+        "ca-central-1" : "ami-0b92dae13b3e44bec",
+        "eu-central-1" : "ami-02b914cc3320872bf",
+        "eu-north-1" : "ami-0ab9180deb89de065",
+        "eu-west-1" : "ami-0a29229fb86522bdf",
+        "eu-west-2" : "ami-0f05a6449bf35d8eb",
+        "eu-west-3" : "ami-00d1e697d702bf50b",
+        "sa-east-1" : "ami-0d290a3951a3527a6",
+        "us-east-1" : "ami-055b00fcd4fa16e29",
+        "us-east-2" : "ami-05fdc59ea810b5079",
+        "us-west-1" : "ami-05d6080881e349b31"
     }
 
-   # Scope of `describe_images` limited to this region.
-    try:
-        response = client.describe_images(
-            Filters=[gitlab_app_ami_filter,],
-            Owners=[SOURCE_GITLAB_APP_AMI_OWNER_ID,],
-        ) 
-    except:
-        inform("No Gitlab Application AMI in this region")
-
-    # Done if there's a Gitlab application server AMI here already.
-    if 'Images' in response:
-        newest_image = get_newest_image(response['Images'])
-        if 'ImageId' in newest_image:
-            return newest_image['ImageId']
-
-    # Look for the source AMI.
-    remote_client = boto3.client('ec2', region_name=SOURCE_GITLAB_APP_AMI_REGION)
-    try:
-        response = remote_client.describe_images(
-            ImageIds = [ SOURCE_GITLAB_APP_AMI_ID, ],
-            Owners = [ SOURCE_GITLAB_APP_AMI_OWNER_ID, ]
-        ) 
-    except:
-        inform(
-"""Failed to find the source Gitlab Application AMI in region '{}'.
-
-{}
-
-This needs to be resolved, but pressing on.
-""".format(SOURCE_GITLAB_APP_AMI_REGION, sys.exc_info()[1]))
-
-    if 'Images' not in response or not response['Images']:
-        inform("""
-Couldn't find a Gitlab application AMI. Looked in '{}' and '{}'.
-Pressing on but this needs to be resolved.
-            """.format(dest_region, SOURCE_GITLAB_APP_AMI_REGION))
-        return 
-
-    # I don't think we can receive plural images but check regardless.
-    newest_image_description = get_newest_image(response['Images'])
-    if 'ImageId' not in newest_image_description:
-        inform("""
-Couldn't find a Gitlab application AMI. Looked in '{}' and '{}'.
-Pressing on but this needs to be resolved.
-            """.format(dest_region, SOURCE_GITLAB_APP_AMI_REGION))
+    if region not in region_ami:
+        inform("No Gitlab Application Server in this region. This will need to be resolved. Pressing on.")
         return
 
-    # Copy source AMI to destination region.
-    source_ami_id = newest_image_description['ImageId']
-    response = client.copy_image(
-        SourceImageId=source_ami_id,
-        SourceRegion=SOURCE_GITLAB_APP_AMI_REGION,
-        Name=DESTINATION_GITLAB_APP_AMI_NAME,
-        Description=SOURCE_GITLAB_APP_AMI_ID + " copy from " + SOURCE_GITLAB_APP_AMI_REGION,
-    )
-
-    if 'ImageId' not in response:
-        inform("AMI copy not successful. This needs to be resolved. Pressing on.")
-        return
-
-    # Copy source AMI tags to destination.
-    dest_image_id = response['ImageId']
-    response = remote_client.describe_tags(
-                 Filters=[ {
-                   'Name': 'resource-id',
-                   'Values': [ SOURCE_GITLAB_APP_AMI_ID, ],
-                 },],
-               )
-
-    if 'Tags' not in response:
-        inform("Couldn't find the source AMIs tags.")
-        return dest_image_id
-
-    # Q. Why make the output of one function incompatible
-    #    with the input of a "sister" function?
-    # A. Schadenfreude.
-    source_tags = response['Tags']
-    response = client.create_tags(
-                Resources=[dest_image_id,],
-                Tags=[{'Key': tag['Key'], 'Value': tag['Value']} for tag in source_tags]
-              )
-
-    return dest_image_id
+    return region_ami[region]
 
 
 def create_password(length):
