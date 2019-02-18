@@ -17,21 +17,30 @@ as simple as possible to bootstrap an entire environment from scratch.
 % git clone https://github.com/keithpjolley/gitlab-aws.git
 % cd ~/gitlab-aws
 
+# choose a profile name and the region to install into
+% profile="ec2gitlab"
+% region="us-west-1"
+
 # Create an AWS profile specific to this task.
-% ./bin/create_profile _profile_name_
+% ./bin/create_profile "${profile}"
+
+# Create a Github Application Server AMI if needed.
+# This takes about 12 minutes on a micro class machine.
+% (cd configure/packer; packer build -var name=build    \
+    -var profile="${profile}" -var region="${region}" gitlab.json)
 
 # Create an AWS bootstrap host that has the correct software
 # and *only* your new credentials on it.
-% ./bin/create_bootstrap _profile_name_
+% ./bin/create_bootstrap "${profile}"
 % ssh-add ~/.aws/secret_profile_name_.pem
 % ssh -A centos@bootstrap@ec2...
 
 # Create a Gitlab environment in _region_
 centos% cd ./gitlab-aws
-centos% ./bin/create_gitlab --profile _profile_name_ --region _region_
+centos% ./bin/create_gitlab --profile "${profile}" --region "${region}"
 
 # Bring down the Gitlab environment
-centos% ./bin/create_gitlab --profile _profile_name_ --region _region_ --destroy
+centos% ./bin/create_gitlab --profile "${profile}" --region "${region}" --destroy
 ```
 
 Creating a new profile and bootstrap server are optional but recommended.

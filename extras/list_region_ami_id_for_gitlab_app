@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# kjolley
+# This is terrible.
+
+
+home_region="$(aws configure list  | awk '$1=="region"{print $2}')"
+
+for region in $(aws ec2 describe-regions --output text | awk '{print $NF}')
+do
+    ami_id="$(aws ec2 describe-images --owners 842937609224                     \
+        --filters "Name=description,Values='CentOS 7 with gitlab-ee installed'" \
+        --query 'Images[*].{ID:ImageId}'                                        \
+        --region "${region}"                                                    \
+    | tr -d '"'                                                                 \
+    | awk '$1=="ID:"{print $2}')"
+    echo "${region} ${ami_id}"
+done
