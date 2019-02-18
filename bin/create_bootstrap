@@ -1,4 +1,4 @@
-th#!/bin/sh
+#!/bin/sh
 
 # Keith Jolley
 # Mon Feb 11 03:16:20 PST 2019
@@ -62,7 +62,7 @@ chmod 0600 "${pem_file}"
 # See if we need to create the key pair in the default region:
 if ! aws ec2 describe-key-pairs --key-name "${username}" 2>/dev/null
 then
-  aws ec2 import-key-pair --key-name "${username}" --public-key-material 'file://~/.aws/secret_Bjork.pub'
+  aws ec2 import-key-pair --key-name "${username}" --public-key-material "file://${pub_file}"
 fi
 
 # This doesn't return the public ip so we need to query later.
