@@ -41,7 +41,7 @@ resource "aws_instance" "cirunner" {
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
   subnet_id              = "${element(var.vpc_priv_subnets, 0)}"
-  vpc_security_group_ids = ["${aws_security_group.sg_cirunner}"]
+  vpc_security_group_ids = ["${aws_security_group.sg_cirunner.id}"]
   tags = "${merge(var.tags, map(
     "Name", "${var.hostname}"
   ))}"
