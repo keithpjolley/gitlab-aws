@@ -139,7 +139,6 @@ module "rds" {
   sg_int_redis        = "${module.security_groups.internal_redis}"
   vpc_default_db_subnet_group = "${module.vpc.default_db_subnet_group}"
   vpc_private_subnets = ["${module.vpc.private_subnets}"]
-
   tags = {
     Section = "RDS"
     Prefix  = "${var.prefix}"
@@ -216,22 +215,6 @@ module "vpc" {
 //  }
 //}
 
-
-data "template_file" "gitlab_application_user_data" {
-  template = "${file("${path.module}/templates/gitlab_application_user_data.tpl")}"
-
-  vars {
-    nfs_server_private_ip = "${aws_instance.nfs_server.private_ip}"
-    postgres_database     = "${aws_db_instance.gitlab_postgres.name}"
-    postgres_username     = "${aws_db_instance.gitlab_postgres.username}"
-    postgres_password     = "${var.postgres_passwd}"
-    postgres_endpoint     = "${aws_db_instance.gitlab_postgres.address}"
-    redis_endpoint        = "${aws_elasticache_replication_group.gitlab_redis.primary_endpoint_address}"
-    key_name              = "${var.keypair}"
-    cidr                  = "${module.vpc.cidr_block}"
-  }
-}
-
 # To be clean in v2
 
 /*
@@ -250,6 +233,20 @@ module "autoscaling" {
 }
 */
 
+data "template_file" "gitlab_application_user_data" {
+  template = "${file("${path.module}/templates/gitlab_application_user_data.tpl")}"
+  vars {
+    nfs_server_private_ip = "${aws_instance.nfs_server.private_ip}"
+    postgres_database     = "${aws_db_instance.gitlab_postgres.name}"
+    postgres_username     = "${aws_db_instance.gitlab_postgres.username}"
+    postgres_password     = "${var.postgres_passwd}"
+    postgres_endpoint     = "${aws_db_instance.gitlab_postgres.address}"
+    redis_endpoint        = "${aws_elasticache_replication_group.gitlab_redis.primary_endpoint_address}"
+    key_name              = "${var.keypair}"
+    cidr                  = "${module.vpc.cidr_block}"
+  }
+}
+
 # Find the latest available AMI that is tagged with Component = web
 data "aws_ami" "gitlab_application_ami" {
   filter {
@@ -267,7 +264,7 @@ resource "aws_launch_configuration" "gitlab_application" {
   name_prefix     = "${var.prefix}-gitlab-application-"
   image_id        = "${var.gitlab_application_ami}"
   instance_type   = "t2.micro"
-  security_groups = "${var.security_groups}"
+  security_groups = ["${aws_security_group.gitlab_application.id}", "${module.security_groups.internal_ssh}"]
   key_name        = "${var.keypair}"
   tags = {
     Section = "GITLAB_APPLICATION"
