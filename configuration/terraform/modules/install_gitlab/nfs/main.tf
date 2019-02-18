@@ -55,6 +55,10 @@ resource "aws_instance" "nfs_server" {
   ))}"
 }
 
+output "private_ip" {
+    value = "${aws_instance.nfs_server.private_ip}"
+}
+
 resource "aws_ebs_volume" "gitlab_nfs_volumes" {
   availability_zone = "${element(var.availability_zones, 0)}"
   count             = "${length(local.device_names)}"
