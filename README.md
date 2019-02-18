@@ -182,7 +182,14 @@ Create a new profile.
 Created credentials file: /home/ec2-user/.aws/credentials_testing
 ```
 
-(tbc)
+# To document.
+
+Not being able to share AMIs has been a roadblock. I created an AMI, added a group which can
+launch the AMI, and add new users to that group. It's yet to be seen if it's possible for
+the users to copy that AMI to a different region.
+
+
+
 
 
 

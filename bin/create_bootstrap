@@ -155,7 +155,7 @@ sudo yum -y upgrade
 
 echo ""
 echo "Installing git and bzip."
-sudo yum -y install git bzip2
+sudo yum -y install bzip2 git
 
 echo ""
 curl -o /tmp/miniconda.37.repo.sh "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
@@ -189,8 +189,15 @@ conda install -y -c conda-forge ansible awscli boto3 terraform
 
 echo ""
 echo "Cloning the gitlab-aws repo"
+# I made the repo private so need to access with my ssh key
 #git clone https://github.com/keithpjolley/gitlab-aws.git
 git clone git@github.com:keithpjolley/gitlab-aws.git
+
+#echo ""
+#echo "Installing Packer"
+#curl -o /tmp/packer_amd64.zip "https://releases.hashicorp.com/packer/1.3.4/packer_1.3.4_linux_amd64.zip"
+#unzip  /tmp/packer_amd64.zip
+#mv ./packer ./gitlab-aws/bin/
 
 echo ""
 echo "Behold!"

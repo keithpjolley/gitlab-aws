@@ -54,8 +54,6 @@ def create_user(client, iam, creator, username, policy_dir, region):
         GroupName = username + "_group"
     )
     group = iam.Group(response['Group']['GroupName'])
-
-    # Add the user to the group.
     response = group.add_user(UserName=username)
 
     group_policy = iam.GroupPolicy(
@@ -70,6 +68,10 @@ def create_user(client, iam, creator, username, policy_dir, region):
         response = group_policy.put(
             PolicyDocument = data
         )
+
+    # allow this user to launch/copy(?) the gitlab app ami
+    group = iam.Group('gitlab_app_ami_permissions')
+    group.add_user(UserName=username) 
 
     return cred_file
 
@@ -96,7 +98,7 @@ if __name__ == "__main__":
 
     region = 'us-west-2'
     if(len(sys.argv) > 3):
-        policy_document = sys.argv[3]
+        region = sys.argv[3]
 
     client = boto3.client('iam')
     iam = boto3.resource('iam')
