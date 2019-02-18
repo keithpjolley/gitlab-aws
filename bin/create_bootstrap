@@ -154,8 +154,8 @@ echo "Updating system with 'yum'."
 sudo yum -y upgrade
 
 echo ""
-echo "Installing git and bzip."
-sudo yum -y install bzip2 git
+echo "Installing bzip, git, and unzip."
+sudo yum -y install bzip2 git unzip
 
 echo ""
 curl -o /tmp/miniconda.37.repo.sh "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
@@ -193,11 +193,11 @@ echo "Cloning the gitlab-aws repo"
 #git clone https://github.com/keithpjolley/gitlab-aws.git
 git clone git@github.com:keithpjolley/gitlab-aws.git
 
-#echo ""
-#echo "Installing Packer"
-#curl -o /tmp/packer_amd64.zip "https://releases.hashicorp.com/packer/1.3.4/packer_1.3.4_linux_amd64.zip"
-#unzip  /tmp/packer_amd64.zip
-#mv ./packer ./gitlab-aws/bin/
+echo ""
+echo "Installing Packer"
+curl -o /tmp/packer_amd64.zip "https://releases.hashicorp.com/packer/1.3.4/packer_1.3.4_linux_amd64.zip"
+unzip  /tmp/packer_amd64.zip
+mv ./packer ./gitlab-aws/bin/
 
 echo ""
 echo "Behold!"
