@@ -40,8 +40,8 @@ parser.add_argument('-p', '--profile',
     help='EC2 profile to use. Will look for credentials in ~/.aws/credentials_`profile`.')
 parser.add_argument('-d', '--destroy', action='store_true', help='Safely bring everything down.')
 parser.add_argument('--version', action='version', version=VERSION)
-#parser.add_argument('--gitlab_server_ami_id', action='gitlab_server_ami_id',
-#    help='AMI ID of the Gitlab server image in the region.')
+parser.add_argument('--gitlab_app_server_ami_id', action='gitlab_app_server_ami_id',
+    help='AMI ID of the Gitlab server image in the region.')
 #parser.add_argument('--verbose', action='store_true', help='Not yet implemented')
 #parser.add_argument('--domainname', help='Not yet implemented.')
 #parser.add_argument('--subdomainname', help='Not yet implemented.')
@@ -49,6 +49,7 @@ parser.add_argument('--version', action='version', version=VERSION)
 args = parser.parse_args()
 region = args.region
 profile = args.profile
+gitlab_app_server_ami_id = args.gitlab_app_server_ami_id
 destroy = args.destroy
 
 # Directory structure
@@ -359,41 +360,6 @@ def get_availability_zones(resource):
     return [az['ZoneName'] for az in response['AvailabilityZones']][-2:]
 
 
-def get_gitlab_app_server_ami_id(region):
-    """
-    Return the Gitlab Application Server AMI for this region.
-    """
-    # Use this until I implement --gitlab-app-ami-id
-    # These are images I've prepopulated. This won't work
-    # for you.
-    # Because the Packer process takes 15 minutes it's
-    # outside of my self-imposed bring-up time.
-    region_ami={
-        "ap-northeast-1" : "ami-01b2ba85f56d26be6",
-        "ap-northeast-2" : "ami-0bd03308e0abd895e",
-        "ap-south-1"     : "ami-0461dd1a84260d822",
-        "ap-southeast-1" : "ami-0abda0ca2a39a58b3",
-        "ap-southeast-2" : "ami-0b02951ec8ffca8b6",
-        "ca-central-1" : "ami-0f6aedf5f1335a87d",
-        "eu-central-1" : "ami-01a801e9876830dc1",
-#        "eu-north-1" : "", # gives "not supported error"
-        "eu-west-1" : "ami-04de557e65dfb2923",
-        "eu-west-2" : "ami-0de4314ca8fe8e16f",
-        "eu-west-3" : "ami-079d8168a0c7c25c7",
-        "sa-east-1" : "ami-0e7c3c84ae76bce2c",
-        "us-east-1" : "ami-0a800ffbc6e0e5c3b",
-        "us-east-2" : "ami-0c090453692c03bca",
-#        "us-west-1" : "",
-        "us-west-2" : "ami-0fd9f4edb58f072f5",
-    }
-
-    if region not in region_ami:
-        inform("No Gitlab Application Server in this region. This will need to be resolved. Pressing on.")
-        return
-
-    return region_ami[region]
-
-
 def create_password(length):
     alphabet = string.ascii_letters + string.digits
     while True:
@@ -460,10 +426,6 @@ if __name__ == "__main__":
     # Find two availability zones to use.
     availability_zones = get_availability_zones(client)
     inform("availability_zones: {}".format(availability_zones))
-
-    # Ensure that we have a Gitlab 'Replicant' application
-    # server AMI available in this region.
-    gitlab_app_server_ami_id = get_gitlab_app_server_ami_id(region)
 
     postgres_password = create_postgres_password(12, destination_dir)
 
