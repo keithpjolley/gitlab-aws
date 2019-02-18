@@ -61,7 +61,8 @@ output "postgress_username" {
 output "postgress_address" {
     value = "${aws_db_instance.gitlab_postgres.address}"
 }
-
-output "gitlab_redis" {
-    value = "${aws_elasticache_replication_group.gitlab_redis}"
+/*
+output "rep_grp_gitlab_redis" {
+    value = "${aws_elasticache_replication_group.gitlab_redis.}"
 }
+*/
