@@ -550,7 +550,7 @@ if __name__ == "__main__":
         "keypair": profile,
         "me": me,
         "pemfile": str(pem_file),
-        "postgres_passwd": postgres_password,
+        "postgres_password": postgres_password,
         "prefix": profile,
         "profile": profile,
         "region": region,

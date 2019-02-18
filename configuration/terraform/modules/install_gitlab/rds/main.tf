@@ -1,7 +1,7 @@
 variable availability_zones  { default = [] }
 variable name                { }
 variable postgres_host_type  { default = "db.m4.large" }
-variable postgress_passwd    { }
+variable postgress_password  { }
 variable prefix              { }
 variable redis_host_type     { default = "cache.t2.small" }
 variable sg_int_psql         { }
@@ -21,7 +21,7 @@ resource "aws_db_instance" "postgres" {
   instance_class                = "${var.postgress_host_type}"
   multi_az                      = true
   name                          = "gitlabhq_production"
-  password                      = "${var.postgres_passwd}"
+  password                      = "${var.postgres_password}"
   skip_final_snapshot           = true
   storage_encrypted             = true
   storage_type                  = "gp2"
@@ -58,7 +58,7 @@ output "postgress_username" {
     value = "${aws_db_instance.postgres.username}"
 }
 
-output "postgress_address" {
+output "gitlab_postgress_address" {
     value = "${aws_db_instance.gitlab_postgres.address}"
 }
 /*
