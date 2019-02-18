@@ -1,4 +1,4 @@
-#!/bin/sh
+th#!/bin/sh
 
 # Keith Jolley
 # Mon Feb 11 03:16:20 PST 2019
@@ -41,6 +41,8 @@ ami_id="ami-01ed306a12b7d1c96"
 # mktemp has different behaviours on different os's. On some it
 # looks like I don't know what I'm doing with all the Xs, on others
 # the Xs are required.
+# 
+# v2 will put the pem/credential files in ./environment/ instead.
 tmp_pem_file="$(mktemp -t "${me}.pem.XXXXXXXX")"
 pem_file="${HOME}/.aws/secret_${username}.pem"
 pub_file="${HOME}/.aws/secret_${username}.pub"
@@ -69,6 +71,7 @@ instance_id="$(aws ec2 run-instances --image-id "$ami_id" --instance-type "$inst
         --key-name "${username}" --output text --query 'Instances[0].InstanceId'                            \
         --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=bootstrap_'"${username}"'}]')"
 
+# a "waiting" client would work better here.
 state=
 while [ "${state}" != "running" ]
 do
@@ -141,6 +144,7 @@ done
 
 echo "Installing required software on the bootstrap host"
 
+# This should be moved to ansible.
 ssh -i "${pem_file}" centos@${PublicDnsName} bash <<EOF
 echo ""
 echo "Updating system with 'yum'."
@@ -182,7 +186,8 @@ conda install -y -c conda-forge ansible awscli boto3 terraform
 
 echo ""
 echo "Cloning the gitlab-aws repo"
-git clone https://github.com/keithpjolley/gitlab-aws.git
+#git clone https://github.com/keithpjolley/gitlab-aws.git
+git clone git@github.com:keithpjolley/gitlab-aws.git
 
 echo ""
 echo "Behold!"

@@ -9,6 +9,10 @@ as simple as possible to bootstrap an entire environment from scratch.
 
 
 ```
+# Remove ssh keys, add back in id_rsa for github access
+% ssh-add -D
+% ssh-add ~/.ssh/id_rsa
+
 # Download this code into your home directory:
 % git clone https://github.com/keithpjolley/gitlab-aws.git
 % cd ~/gitlab-aws
@@ -19,7 +23,8 @@ as simple as possible to bootstrap an entire environment from scratch.
 # Create an AWS bootstrap host that has the correct software
 # and *only* your new credentials on it.
 % ./bin/create_bootstrap _profile_name_
-% ssh centos@bootstrap@ec2...
+% ssh-add ~/.aws/secret_profile_name_.pem
+% ssh -A centos@bootstrap@ec2...
 
 # Create a Gitlab environment in _region_
 centos% cd ./gitlab-aws
@@ -63,6 +68,13 @@ do because I haven't tested any of this on your host.
 
 `% ./bin/create_bootstrap _profilename_`
 
+If you get an 'access denied' error you can `Ctrl-Z, ssh-add -D, fg`
+to continue without starting over.
+
+New patches, git, minaconda, and boto3 are installed and takes a 
+minute or two (this may change as the centos image ages and
+more patches are added over time).
+
 This script will return what you need to ssh into your new bootstrap
 host. It will create the bootstrap host in your default region which
 is independent of which region your final install will be in.
@@ -71,7 +83,7 @@ is independent of which region your final install will be in.
 point you to the new host address and the correct pem file. The ssh
 command will look like:
 
-`% ssh -i mynewprofile.pem centos@ec2_public_ip.amazon.com`
+`% ssh -i ~/.aws/mynewprofile.pem centos@ec2_public_ip.amazon.com`
 
 You can also add the new keys to your ssh agent:
 `% ssh-add mynewprofile.pem`
