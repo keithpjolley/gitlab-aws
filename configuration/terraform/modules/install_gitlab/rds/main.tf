@@ -49,7 +49,7 @@ output "gitlab_postgres_address" {
 # it's made.
 variable maxcount { default = 1 }
 resource "aws_elasticache_subnet_group" "ec_subnet_group_redis" {
-  name = "${var.name}-redis-subnet-group"
+  name = "${var.name}-redis_ec_sg"
   count = "${1 - var.maxcount}"
   subnet_ids = ["${var.vpc_private_subnets}"]
 }
