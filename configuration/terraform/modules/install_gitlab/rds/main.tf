@@ -12,7 +12,7 @@ variable vpc_private_subnets { default = [] }
 variable tags                { default = {} }
 
 # `instance_class` here, `instance_type` everywhere else.
-resource "aws_db_instance" "postgres" {
+resource "aws_db_instance" "gitlab_postgres" {
   allocated_storage             = 50 # G
   db_subnet_group_name          = "${var.vpc_default_db_subnet_group}"
   engine                        = "postgres"
@@ -51,7 +51,7 @@ resource "aws_elasticache_replication_group" "ec_replicant_group_redis" {
 }
 
 output "postgres_username" {
-    value = "${aws_db_instance.postgres.username}"
+    value = "${aws_db_instance.gitlab_postgres.username}"
 }
 
 output "gitlab_postgres_address" {
