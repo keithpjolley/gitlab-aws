@@ -1,0 +1,31 @@
+- hosts: all
+  become: true
+  tasks:
+
+    - name: yum update
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Install required packages
+      yum:
+        name: ['curl', 'policycoreutils-python']
+        update_cache: yes
+
+    - name: Download the ci-runner repo
+      get_url: url=https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.rpm.sh dest=/tmp/gitlab-runner.rpm.sh
+
+    - name: Fix permissions
+      file:
+        path: /tmp/gitlab-runner.rpm.sh
+        owner: root
+        mode: 0755
+
+    - name: Install gitlab repo 
+      shell: /tmp/gitlab-runner.rpm.sh
+   
+    - name: Remove gitlab installer
+      file:
+        path: /tmp/gitlab-runner.rpm.sh
+        state: absent
+
