@@ -11,6 +11,7 @@ variable vpc_private_subnets { default = [] }
 
 variable tags                { default = {} }
 variable postgres_username   { default = "gitlab" }
+variable postgres_dbname     { default = "gitlab_prod" }
 
 
 # `instance_class` here, `instance_type` everywhere else.
@@ -22,13 +23,25 @@ resource "aws_db_instance" "gitlab_postgres" {
   identifier_prefix             = "${var.prefix}"
   instance_class                = "${var.postgres_host_type}"
   multi_az                      = true
-  name                          = "gitlabhq_production"
+  name                          = "gitlab_production"
   password                      = "${var.postgres_password}"
   skip_final_snapshot           = true
   storage_encrypted             = true
   storage_type                  = "gp2"
   username                      = "${var.postgres_username}"
   vpc_security_group_ids        = ["${var.sg_int_psql}"]
+}
+
+output "gitlab_postgres_dbname" {
+  value = "${var.postgres_dbname}"
+}
+
+output "gitlab_postgres_username" {
+  value = "${var.postgres_username}"
+}
+
+output "gitlab_postgres_address" {
+  value = "${aws_db_instance.gitlab_postgres.address}"
 }
 
 resource "aws_elasticache_subnet_group" "ec_subnet_group_redis" {
@@ -50,14 +63,6 @@ resource "aws_elasticache_replication_group" "ec_replicant_group_redis" {
   replication_group_description = "${var.name}-ec_replication_group_redis" 
   security_group_ids            = ["${var.sg_int_redis}"]
   subnet_group_name             = "${aws_elasticache_subnet_group.ec_subnet_group_redis.name}"
-}
-
-output "gitlab_postgres_username" {
-  value = "${var.postgres_username}"
-}
-
-output "gitlab_postgres_address" {
-  value = "${aws_db_instance.gitlab_postgres.address}"
 }
 
 output "gitlab_redis_primary_endpoint_address" {
