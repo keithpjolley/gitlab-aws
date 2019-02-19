@@ -67,7 +67,7 @@ resource "aws_elasticache_replication_group" "ec_replicant_group_redis" {
   replication_group_id          = "${var.name}"
   replication_group_description = "${var.name}-ec_replication_group_redis" 
   security_group_ids            = ["${var.sg_int_redis}"]
-  subnet_group_name             = "${aws_elasticache_subnet_group.ec_subnet_group_redis.0.name}"
+  subnet_group_name             = "${aws_elasticache_subnet_group.ec_subnet_group_redis.name}"
 }
 
 output "gitlab_redis_primary_endpoint_address" {
