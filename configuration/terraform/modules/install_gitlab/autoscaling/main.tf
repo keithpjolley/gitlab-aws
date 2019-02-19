@@ -1,23 +1,27 @@
+
+
+
+
+/*
+ * **********************************************************************
+ * **********************************************************************
+ * **********************************************************************
+ * Not yet implemented (still in `main.tf`)
+ * **********************************************************************
+ * **********************************************************************
+ * **********************************************************************
+ *
+
+
+
+
+
 variable name_prefix     { default = "gitlab-application-" }
 variable image_id        { default = "" }
 variable instance_type   { default = "" }
 variable security_groups { default = [] }
 variable key_name        { default = "" }
 variable tags            { default = "" }
-
-/*
-data "aws_ami" "gitlab_application_ami" {
-  filter {
-    name   = "state"
-    values = ["available"]
-  }
-  filter {
-    name   = "tag:Name"
-    values = ["Replicant_Zero"]
-  }
-  most_recent = true
-}
-*/
 
 resource "aws_launch_configuration" "gitlab_application" {
   name_prefix     = "${var.name}-gitlab-application-"
@@ -91,3 +95,10 @@ resource "aws_security_group" "gitlab_application" {
 output "gitlab_dns_name" {
   value = "${aws_elb.gitlab_application.dns_name}"
 }
+
+
+ * * * * * * * * * * * * * * * * * * * * * * * *
+ * * * * * * * * * * * * * * * * * * * * * * * *
+ * * * * * * * * * * * * * * * * * * * * * * * *
+ * * * * * * * * * * * * * * * * * * * * * * * *
+ */
