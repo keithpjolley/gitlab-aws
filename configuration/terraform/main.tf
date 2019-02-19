@@ -351,7 +351,7 @@ resource "null_resource" "bastion_user" {
     ]
   connection {
       user         = "${var.username}"
-      host         = "${module.bastion.private_ip}"
+      host         = "${module.bastion.public_ip}"
       private_key  = "${file(pathexpand(var.pem_file))}"
       agent        = "false"
     }
@@ -360,12 +360,12 @@ resource "null_resource" "bastion_user" {
     command = <<EOF
       (ssh-keygen -F "${module.bastion.public_ip}"                                          \
        || ssh-keyscan -H "${module.bastion.public_ip}" >> ~/.ssh/known_hosts;               \
-      ssh-add "${pathexpand(var.pem_file)}";                                                        \
-      true);                                                                                        \
-      ansible-playbook                                                                              \
-        --ssh-extra-args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'              \
+      ssh-add "${pathexpand(var.pem_file)}";                                                \
+      true);                                                                                \
+      ansible-playbook                                                                      \
+        --ssh-extra-args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'      \
         -i "${module.bastion.private_ip},"                                                  \
-        -u "${var.username}"                                                                        \
+        -u "${var.username}"                                                                \
         ../ansible/bastion/postinstall.yml
     EOF
   }

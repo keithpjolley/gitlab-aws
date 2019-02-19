@@ -110,10 +110,10 @@ resource "null_resource" "nfs_server" {
       ssh-add "${pathexpand(var.pem_file)}";                                                        \
       true);                                                                                        \
       ansible-playbook                                                                              \
-        --ssh-extra-args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'           \
-        -i "${aws_instance.nfs_server.private_ip},"                                                  \
+        --ssh-extra-args='-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'              \
+        -i "${aws_instance.nfs_server.private_ip},"                                                 \
         -u "${var.username}"                                                                        \
-        -e "nfs_server_hosts=${aws_instance.nfs_server.private_ip}"                                  \
+        -e "nfs_server_hosts=${aws_instance.nfs_server.private_ip}"                                 \
         -e "bastion_user=${var.username}"                                                           \
         -e "bastion_host=${var.bastion_public_ip}"                                                  \
         -e "instance_id=${aws_instance.nfs_server.id}"                                              \

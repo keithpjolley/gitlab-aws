@@ -12,19 +12,17 @@
         name: ['curl', 'zip', 'bzip2', 'unzip']
         update_cache: yes
 
-    - name: Add 'kjolley' account
-      user:
-        name: kjolley
-        comment: "Keith Jolley"
-        shell: /bin/bash
-        groups: wheel
-        append: yes
-
-    - name: Add 'kenny' account
-      user:
-        name: kenny
-        comment: "Kenny Yokoyama"
-        shell: /bin/bash
-        groups: wheel
-        append: yes
+#    - name: Add 'kjolley' account
+#      user:
+#        name: kjolley
+#        comment: "Keith Jolley"
+#        groups: wheel
+#        append: yes
+#
+#    - name: Add 'kenny' account
+#      user:
+#        name: kenny
+#        comment: "Kenny Yokoyama"
+#        groups: wheel
+#        append: yes
 

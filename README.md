@@ -61,7 +61,9 @@ The region is configurable.
 NFS is currently run on EC2 hosts with 3x128GB EFS (Elastic File System) concatenated disks. With two servers
 mirrored. This is listed as best practice by Gitlab for HA.
 
-Currently no backups are being done nor have restores been tested.
+Currently no backups are being done nor have restores been tested. Automated backups of the NFS data and the
+databases are available to this shouldn't take much to implement and test. The rest of the environment is
+able to be recreated from templates.
 
 Costing estimages have not been done because I've not yet load tested the environment, seen the use cases, scoped
 number of users, or size of the projects.

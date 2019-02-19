@@ -13,35 +13,11 @@ variable vpc_cidr               { }
 variable vpc_id                 { }
 variable vpc_priv_subnets       { default = [] }
 
-# Create a security group and see if it makes
-# sense to lock it down later. I don't think so.
-resource "aws_security_group" "sg_cirunner" {
-  vpc_id      = "${var.vpc_id}"
-  name_prefix = "${var.prefix}-cirunner-"
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["${var.vpc_cidr}"]
- }
- ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["${var.vpc_cidr}"]
-  }
-  lifecycle {
-    create_before_destroy = true
-  }
-  tags = "${var.tags}"
-}
-
 resource "aws_instance" "cirunner" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
   subnet_id              = "${element(var.vpc_priv_subnets, 0)}"
-  vpc_security_group_ids = ["${aws_security_group.sg_cirunner.id}"]
   tags = "${merge(var.tags, map(
     "Name", "${var.hostname}"
   ))}"
@@ -71,7 +47,7 @@ resource "null_resource" "cirunner" {
     ]
   connection {
       user         = "${var.username}"
-      host         = "${aws_instance.cirunner.public_ip}"
+      host         = "${aws_instance.cirunner.private_ip}"
       private_key  = "${file(pathexpand(var.pem_file))}"
       bastion_host = "${var.bastion_public_ip}"
       bastion_user = "${var.username}"
@@ -91,11 +67,11 @@ resource "null_resource" "cirunner" {
       true);                                                                                        \
       ansible-playbook                                                                              \
         --ssh-extra-args='-A -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'           \
-        -i "${aws_instance.cirunner.public_ip},"                                                  \
+        -i "${aws_instance.cirunner.private_ip},"                                                   \
         -u "${var.username}"                                                                        \
         -e "bastion_user=${var.username}"                                                           \
         -e "bastion_host=${var.bastion_public_ip}"                                                  \
-        -e "instance_id=${aws_instance.cirunner.id}"                                              \
+        -e "instance_id=${aws_instance.cirunner.id}"                                                \
         -e region="${var.region}"                                                                   \
         -e cidr="${var.vpc_cidr}"                                                                   \
         ../ansible/cirunner/cirunner.yml

@@ -28,4 +28,3 @@
       file:
         path: /tmp/gitlab-runner.rpm.sh
         state: absent
-
