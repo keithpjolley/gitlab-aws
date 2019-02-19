@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns:xl="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="311 138 961 518" width="961" height="518">
   <defs>
     <font-face font-family="Helvetica Neue" font-size="16" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.9958" descent="-212.99744" font-weight="400">
@@ -27,8 +29,8 @@
   <g id="Canvas_1" stroke-dasharray="none" stroke="none" fill="none" fill-opacity="1" stroke-opacity="1">
     <title>Canvas 1</title>
     <rect fill="white" x="311" y="138" width="961" height="518"/>
-    <g id="Canvas_1: Image 1">
-      <title>Image 1</title>
+    <g id="Canvas_1: Layer 1">
+      <title>Layer 1</title>
       <g id="Graphic_7">
         <path d="M 335 140 L 1248 140 C 1260.7025 140 1271 150.29745 1271 163 L 1271 631 C 1271 643.70255 1260.7025 654 1248 654 L 335 654 C 322.29745 654 312 643.70255 312 631 L 312 163 C 312 150.29745 322.29745 140 335 140 Z" fill="#ffeed0"/>
         <path d="M 335 140 L 1248 140 C 1260.7025 140 1271 150.29745 1271 163 L 1271 631 C 1271 643.70255 1260.7025 654 1248 654 L 335 654 C 322.29745 654 312 643.70255 312 631 L 312 163 C 312 150.29745 322.29745 140 335 140 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
@@ -75,13 +77,15 @@
       </g>
       <g id="Group_120">
         <g id="Graphic_16">
-          <rect x="1087" y="209" width="133" height="328" fill-opacity="0.5" fill="#e2e2e2" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+          <rect x="1087" y="209" width="133" height="328" fill="#e2e2e2"/>
+          <rect x="1087" y="209" width="133" height="328" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
           <text transform="translate(1092 517.136)" fill="black">
             <tspan font-family="Helvetica Neue" font-size="13" font-weight="400" fill="black" x="0" y="12">PSQL SG</tspan>
           </text>
         </g>
         <g id="Graphic_17">
-          <rect x="1096.625" y="217.9975" width="113" height="299.37157" fill="white" fill-opacity="0.8" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+          <rect x="1096.625" y="217.9975" width="113" height="299.37157" fill="white"/>
+          <rect x="1096.625" y="217.9975" width="113" height="299.37157" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
           <text transform="translate(1101.625 496.4771)" fill="black">
             <tspan font-family="Helvetica Neue" font-size="14" font-weight="400" fill="black" x="0" y="13">RDS Postgress</tspan>
           </text>
@@ -89,7 +93,7 @@
         <g id="Group_100">
           <g id="Graphic_109">
             <title>Blue_Gradient</title>
-            <rect x="1118" y="230" width="70.25005" height="72.44" fill="dodgerblue"/>
+            <rect x="1118" y="230" width="70.25005" height="72.44" fill="#2e27ad"/>
           </g>
           <g id="Group_101">
             <title>Icon_Test</title>
@@ -119,7 +123,7 @@
         <g id="Group_110">
           <g id="Graphic_119">
             <title>Blue_Gradient</title>
-            <rect x="1118" y="408" width="70.25005" height="72.44" fill="dodgerblue"/>
+            <rect x="1118" y="408" width="70.25005" height="72.44" fill="#2e27ad"/>
           </g>
           <g id="Group_111">
             <title>Icon_Test</title>
@@ -153,13 +157,15 @@
       <g id="Group_164">
         <g id="Group_142">
           <g id="Graphic_144">
-            <rect x="938" y="209" width="133" height="328" fill-opacity="0.5" fill="#e2e2e2" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+            <rect x="938" y="209" width="133" height="328" fill="#e2e2e2"/>
+            <rect x="938" y="209" width="133" height="328" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
             <text transform="translate(943 517.136)" fill="black">
               <tspan font-family="Helvetica Neue" font-size="13" font-weight="400" fill="black" x="0" y="12">PSQL SG</tspan>
             </text>
           </g>
           <g id="Graphic_143">
-            <rect x="946" y="217.9975" width="113" height="299.37157" fill="white" fill-opacity="0.8" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+            <rect x="946" y="217.9975" width="113" height="299.37157" fill="white"/>
+            <rect x="946" y="217.9975" width="113" height="299.37157" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
             <text transform="translate(951 496.4771)" fill="black">
               <tspan font-family="Helvetica Neue" font-size="14" font-weight="400" fill="black" x="0" y="13">RDS Postgress</tspan>
             </text>
@@ -250,13 +256,15 @@
       </g>
       <g id="Group_194">
         <g id="Graphic_196">
-          <rect x="789" y="209" width="133" height="328" stroke="black" fill-opacity="0.5" fill="#e2e2e2" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+          <rect x="789" y="209" width="133" height="328" fill="#e2e2e2"/>
+          <rect x="789" y="209" width="133" height="328" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
           <text transform="translate(794 517.136)" fill="black">
             <tspan font-family="Helvetica Neue" font-size="13" font-weight="400" fill="black" x="0" y="12">NFS SG</tspan>
           </text>
         </g>
         <g id="Graphic_195">
-          <rect x="797" y="217.9975" width="113" height="299.37157" fill="white" fill-opacity="0.8" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+          <rect x="797" y="217.9975" width="113" height="299.37157" fill="white"/>
+          <rect x="797" y="217.9975" width="113" height="299.37157" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
           <text transform="translate(802 496.4771)" fill="black">
             <tspan font-family="Helvetica Neue" font-size="14" font-weight="400" fill="black" x="0" y="13">EFS/EC2 NFS</tspan>
           </text>
@@ -291,7 +299,8 @@
       </g>
       <g id="Group_404">
         <g id="Graphic_226">
-          <rect x="632" y="209" width="133" height="328" fill="white" fill-opacity="0.85" stroke="#a5a5a5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+          <rect x="632" y="209" width="133" height="328" fill="white"/>
+          <rect x="632" y="209" width="133" height="328" stroke="#a5a5a5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
           <text transform="translate(637 514.052)" fill="black">
             <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="0" y="15">Gitlab Runners</tspan>
           </text>
@@ -1427,8 +1436,8 @@
         <line x1="412.5" y1="366.5" x2="444.93777" y2="420.1216" marker-end="url(#FilledArrow_Marker)" stroke="#666" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
       </g>
       <g id="Graphic_227">
-        <title>Elastic Load Balancer</title>
-        <rect x="374" y="328" width="75" height="75" fill="#ffb124"/>
+        <title>Orange_Gradient</title>
+        <rect x="374" y="328" width="75" height="75" fill="#dead26"/>
       </g>
       <g id="Group_228">
         <title>Icon_Test</title>
