@@ -47,7 +47,7 @@ Creating a new profile and bootstrap server are optional but recommended.
 
 
 ## Architecture
-![Architecture Diagram](https://raw.github.com/keithpjolley/gitlab-aws/extras/images/architecture.svg?sanitize=true)
+![Architecture Diagram](extras/images/architecture.png)
 
 
 This architecture is a based on the [HA Reference Architecture](https://docs.gitlab.com/ee/university/high-availability/aws/)
