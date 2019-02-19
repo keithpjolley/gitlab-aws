@@ -237,4 +237,3 @@ Ansible](https://medium.com/@aloisbarreras_18569/automating-running-gitlab-on-aw
 [Boto3 Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
 
 
-
