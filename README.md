@@ -46,6 +46,26 @@ centos% ./bin/create_gitlab --profile "${profile}" --region "${region}" --destro
 Creating a new profile and bootstrap server are optional but recommended.
 
 
+## Architecture
+![Architecture Diagram](https://raw.githubusercontent.com/keithpjolley/gitlab-aws/master/extras/images/architecture.svg)
+
+This architecture is a based on the [HA Reference Architecture](https://docs.gitlab.com/ee/university/high-availability/aws/)
+published by Gitlab.
+
+Currently the host types are set to minimums as the goal at this stage isn't sizing or load testing but simply
+to bring the environment up.
+
+The region is configurable.
+
+NFS is currently run on EC2 hosts with 3x128GB EFS (Elastic File System) concatenated disks. With two servers
+mirrored. This is listed as best practice by Gitlab for HA.
+
+Currently no backups are being done nor have restores been tested.
+
+Costing estimages have not been done because I've not yet load tested the environment, seen the use cases, scoped
+number of users, or size of the projects.
+
+
 ## Requirements
 
 1. Linux or MacOS command line and internet access.
