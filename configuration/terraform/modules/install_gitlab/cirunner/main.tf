@@ -12,16 +12,40 @@ variable username               { default = "centos" }
 variable vpc_cidr               { }
 variable vpc_id                 { }
 variable vpc_priv_subnets       { default = [] }
+variable cirunner_sec_groups    { default = [] }
 
 resource "aws_instance" "cirunner" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
   subnet_id              = "${element(var.vpc_priv_subnets, 0)}"
+  vpc_security_group_ids = ["${var.cirunner_sec_groups}", "${aws_security_group.ci_runner.id}"]
   tags = "${merge(var.tags, map(
     "Name", "${var.hostname}"
   ))}"
 }
+
+resource "aws_security_group" "cirunner" {
+  vpc_id      = "${var.vpc_id}"
+  name_prefix = "${var.prefix}-cirunner"
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["${var.vpc_cidr}"]
+ }
+ ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["${var.vpc_cidr}"]
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
+  tags = "${var.tags}"
+}
+
 
 output "cirunner_private_ip" {
     value = "${aws_instance.cirunner.private_ip}"
@@ -51,6 +75,7 @@ resource "null_resource" "cirunner" {
       private_key  = "${file(pathexpand(var.pem_file))}"
       bastion_host = "${var.bastion_public_ip}"
       bastion_user = "${var.username}"
+      agent        = "false"
     }
   }
   # `local` refers to the host that is running terraform
