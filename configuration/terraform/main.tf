@@ -370,4 +370,3 @@ resource "null_resource" "bastion_user" {
     EOF
   }
 }
-

@@ -92,7 +92,7 @@ resource "null_resource" "nfs_server" {
       private_key  = "${file(pathexpand(var.pem_file))}"
       bastion_host = "${var.bastion_public_ip}"
       bastion_user = "${var.username}"
-	agent="false"
+	  agent        = "false"
     }
   }
 

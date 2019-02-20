@@ -11,7 +11,7 @@ variable vpc_private_subnets { default = [] }
 
 variable tags                { default = {} }
 variable postgres_username   { default = "gitlab" }
-variable postgres_dbname     { default = "gitlab_prod" }
+variable postgres_dbname     { default = "gitlabprod" }
 
 
 

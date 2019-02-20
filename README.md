@@ -58,15 +58,20 @@ to bring the environment up.
 
 The region is configurable.
 
-NFS is currently run on EC2 hosts with 3x128GB EFS (Elastic File System) concatenated disks. With two servers
-mirrored. This is listed as best practice by Gitlab for HA.
+NFS is currently run on EC2 hosts with 3x128GB EFS (Elastic File
+System) concatenated disks. With two servers mirrored. This is
+listed as best practice by Gitlab for HA.
 
-Currently no backups are being done nor have restores been tested. Automated backups of the NFS data and the
-databases are available to this shouldn't take much to implement and test. The rest of the environment is
-able to be recreated from templates.
+Currently no backups are being done nor have restores been tested.
+Gitlab provides `sudo gitlab-rak gitlab:backup:create` to to automate
+backups and AWS has automated backups of the NFS data and the
+databases into S3 so this shouldn't take much to implement and test.
+The rest of the environment is able to be recreated from templates.
 
-Costing estimages have not been done because I've not yet load tested the environment, seen the use cases, scoped
-number of users, or size of the projects.
+Costing estimates have not been done because I've not yet load
+tested the environment, seen the use cases, scoped number of users,
+or size of the projects. As a static test environment the majority
+of the cost will be from using the hosted Postgres service.
 
 
 ## Requirements
@@ -214,17 +219,31 @@ Create a new profile.
 Created credentials file: /home/ec2-user/.aws/credentials_testing
 ```
 
-# To document.
+# To document. / Problems. / To be fixed later.
 
 Not being able to share AMIs has been a roadblock. I created an AMI, added a group which can
 launch the AMI, and add new users to that group. It's yet to be seen if it's possible for
 the users to copy that AMI to a different region.
 
+The Terraform template never ran on the AMI instance. Configured by hand and created a new
+image. I knew Packer was bad news. ;)
+
+[Gitaly](https://docs.gitlab.com/ee/administration/gitaly/index.html) not installed.
+
+Upgraded Gitlab Application server to 11.7.5 after unpatched/unfixed issues surfaced
+in configuration. Running a manual install
+
+curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh | sudo bash
+sudo EXTERNAL_URL="https//www.example.com" yum -y install gitlab-ee
+
+Also: Gitlab says: *We also strongly recommend at least 4GB of free memory to run GitLab.*
 
 
+Later - minimal effort: Turn off http. Need certs.
 
+Not all parts are self-healing (Bastion, CIRunner).
 
-
+CIRunner has public ip?
 
 
 

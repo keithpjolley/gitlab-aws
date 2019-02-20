@@ -10,7 +10,7 @@ write_files:
   - content: |
       # Prevent GitLab from starting if NFS data mounts are not available
       high_availability['mountpoint'] = ['/var/opt/gitlab/git-data', '/var/opt/gitlab/.ssh', '/var/opt/gitlab/gitlab-rails/uploads', '/var/opt/gitlab/gitlab-rails/shared', '/var/opt/gitlab/gitlab-ci/builds']
-      # Disabe built-in postgres and redis
+      # Disable built-in postgres and redis
       postgresql['enable'] = false
       redis['enable'] = false
       # External postgres settings
